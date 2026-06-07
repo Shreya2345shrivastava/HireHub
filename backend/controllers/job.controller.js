@@ -32,8 +32,10 @@ export const postJob = async (req, res) => {
             job,
             success: true
         });
+
     } catch (error) {
         console.log(error);
+
         return res.status(500).json({
             message: "Internal server error.",
             success: false
@@ -41,35 +43,50 @@ export const postJob = async (req, res) => {
     }
 };
 
-// ✅ Student: Get all jobs with optional keyword filter
+// ✅ Student: Get all jobs
 export const getAllJobs = async (req, res) => {
     try {
         const keyword = req.query.keyword || "";
 
         const query = {
             $or: [
-                { title: { $regex: keyword, $options: "i" } },
-                { description: { $regex: keyword, $options: "i" } },
+                {
+                    title: {
+                        $regex: keyword,
+                        $options: "i"
+                    }
+                },
+                {
+                    description: {
+                        $regex: keyword,
+                        $options: "i"
+                    }
+                }
             ]
         };
 
         const jobs = await Job.find(query)
-            .populate({ path: "company" })
-            .sort({ createdAt: -1 });
-
-        if (!jobs || jobs.length === 0) {
-            return res.status(404).json({
-                message: "No jobs found.",
-                success: false
+            .populate({
+                path: "company"
+            })
+            .sort({
+                createdAt: -1
             });
-        }
 
+        // ✅ RETURN EMPTY ARRAY INSTEAD OF 404
         return res.status(200).json({
-            jobs,
-            success: true
+            jobs: jobs || [],
+            totalJobs: jobs.length,
+            success: true,
+            message:
+                jobs.length === 0
+                    ? "No jobs available yet."
+                    : "Jobs fetched successfully."
         });
+
     } catch (error) {
         console.log(error);
+
         return res.status(500).json({
             message: "Internal server error.",
             success: false
@@ -89,7 +106,8 @@ export const getJobById = async (req, res) => {
             });
         }
 
-        const job = await Job.findById(jobId).populate("applications");
+        const job = await Job.findById(jobId)
+            .populate("applications");
 
         if (!job) {
             return res.status(404).json({
@@ -102,8 +120,10 @@ export const getJobById = async (req, res) => {
             job,
             success: true
         });
+
     } catch (error) {
         console.log(error);
+
         return res.status(500).json({
             message: "Internal server error.",
             success: false
@@ -111,28 +131,29 @@ export const getJobById = async (req, res) => {
     }
 };
 
-// ✅ Admin: Get all jobs created by logged-in admin
+// ✅ Admin jobs
 export const getAdminJobs = async (req, res) => {
     try {
+
         const adminId = req.id;
 
-        const jobs = await Job.find({ created_by: adminId })
-            .populate("company")
-            .sort({ createdAt: -1 });
+        const jobs = await Job.find({
+            created_by: adminId
+        })
+        .populate("company")
+        .sort({
+            createdAt: -1
+        });
 
-        if (!jobs || jobs.length === 0) {
-            return res.status(404).json({
-                message: "No jobs found.",
-                success: false
-            });
-        }
-
+        // ✅ RETURN EMPTY ARRAY INSTEAD OF 404
         return res.status(200).json({
-            jobs,
+            jobs: jobs || [],
             success: true
         });
+
     } catch (error) {
         console.log(error);
+
         return res.status(500).json({
             message: "Internal server error.",
             success: false
@@ -140,31 +161,42 @@ export const getAdminJobs = async (req, res) => {
     }
 };
 
-// ✅ Admin: Total jobs posted in last 30 days
+// ✅ Total jobs posted
 export const getTotalJobPostedLast30Days = async (req, res) => {
     try {
+
         const now = new Date();
-        const thirtyDaysAgo = new Date(now.setDate(now.getDate() - 30));
+        const thirtyDaysAgo = new Date(
+            now.setDate(now.getDate() - 30)
+        );
 
         const jobs = await Job.find({
             $or: [
-                { jobPosted: true },
-                { lastPost: { $gte: thirtyDaysAgo } }
+                {
+                    jobPosted: true
+                },
+                {
+                    lastPost: {
+                        $gte: thirtyDaysAgo
+                    }
+                }
             ]
         });
 
-        const totalJobPosted = jobs.length;
-
         return res.status(200).json({
             success: true,
-            totalJobPosted,
-            message: `Total jobs posted in the last 30 days: ${totalJobPosted}`
+            totalJobPosted: jobs.length,
+            message: `Total jobs posted in last 30 days: ${jobs.length}`
         });
+
     } catch (error) {
+
         console.log(error);
+
         return res.status(500).json({
             success: false,
-            message: "Error retrieving total jobs posted in the last 30 days"
+            message: "Error retrieving jobs count"
         });
+
     }
 };

@@ -12,7 +12,8 @@ import { toast } from 'sonner'
 
 const Navbar = () => {
     const { user } = useSelector(store => store.auth);
-    
+        console.log("Navbar User:", user);
+
     const dispatch = useDispatch();
     const navigate = useNavigate();
 
