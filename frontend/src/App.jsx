@@ -16,6 +16,7 @@ import Applicants from './components/admin/Applicants'
 import ProtectedRoute from './components/admin/ProtectedRoute'
 import OTPVerification from './components/auth/OTPverification'
 import Payment from './components/Payment'
+import SavedJobs from './components/SavedJobs'
 
 
 
@@ -42,6 +43,10 @@ const appRouter = createBrowserRouter([
   {
     path: "/jobs",
     element: <Jobs />
+  },
+  {
+    path: "/saved-jobs",
+    element: <SavedJobs />
   },
   {
     path: "/description/:id",

@@ -12,11 +12,12 @@ const useGetAppliedJobs = () => {
             try {
                 const res = await axiosInstance.get(`${APPLICATION_API_END_POINT}/get`);
                // console.log(res.data);
-                if(res.data.success){
-                    dispatch(setAllAppliedJobs(res.data.application));
+                if (res.data.success) {
+                    dispatch(setAllAppliedJobs(res.data.applications || res.data.application || []));
                 }
             } catch (error) {
-               // console.log(error);
+                console.log(error);
+                dispatch(setAllAppliedJobs([]));
             }
         }
         fetchAppliedJobs();

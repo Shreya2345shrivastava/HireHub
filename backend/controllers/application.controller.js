@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { Application } from "../models/application.model.js";
 import { Job } from "../models/job.model.js";
+import { Notification } from "../models/notification.model.js";
 
 // ✅ Apply for a job
 export const applyJob = async (req, res) => {
@@ -39,6 +40,17 @@ export const applyJob = async (req, res) => {
 
         job.applications.push(newApplication._id);
         await job.save();
+
+        // Send notification to Recruiter
+        if (job.created_by) {
+            await Notification.create({
+                user: job.created_by,
+                title: "New Job Application Received",
+                message: `A candidate has applied for your job post: "${job.title}".`,
+                type: "new_application",
+                link: `/admin/jobs/${job._id}/applicants`
+            });
+        }
 
         return res.status(201).json({
             message: "Job applied successfully.",
@@ -150,7 +162,7 @@ export const updateStatus = async (req, res) => {
             });
         }
 
-        const application = await Application.findById(applicationId);
+        const application = await Application.findById(applicationId).populate('job');
         if (!application) {
             return res.status(404).json({
                 message: "Application not found.",
@@ -160,6 +172,17 @@ export const updateStatus = async (req, res) => {
 
         application.status = status.toLowerCase();
         await application.save();
+
+        // Send notification to Applicant
+        if (application.applicant) {
+            await Notification.create({
+                user: application.applicant,
+                title: "Application Status Update",
+                message: `Your application for "${application?.job?.title || 'a job'}" was updated to: ${status.toUpperCase()}.`,
+                type: "application_update",
+                link: "/profile"
+            });
+        }
 
         return res.status(200).json({
             message: "Status updated successfully.",

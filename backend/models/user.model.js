@@ -31,6 +31,10 @@ const userSchema = new mongoose.Schema({
     company: { type: mongoose.Schema.Types.ObjectId, ref: 'Company' },
     profilePhoto: { type: String, default: "" }
   },
+  savedJobs: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Job'
+  }],
   otp: { // Store the OTP value
     type: String,
     default: null

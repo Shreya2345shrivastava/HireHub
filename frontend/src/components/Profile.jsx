@@ -2,13 +2,14 @@ import React, { useState } from 'react'
 import Navbar from './shared/Navbar'
 import { Avatar, AvatarImage } from './ui/avatar'
 import { Button } from './ui/button'
-import { Contact, Mail, Pen } from 'lucide-react'
+import { Bookmark, Contact, Mail, Pen } from 'lucide-react'
 import { Badge } from './ui/badge'
 import { Label } from './ui/label'
 import AppliedJobTable from './AppliedJobTable'
 import UpdateProfileDialog from './UpdateProfileDialog'
 import { useSelector } from 'react-redux'
 import useGetAppliedJobs from '@/hooks/useGetAppliedJobs'
+import { Link } from 'react-router-dom'
 
 // const skills = ["Html", "Css", "Javascript", "Reactjs"]
 const isResume = true;
@@ -59,8 +60,15 @@ const Profile = () => {
                     <div>Loading...</div>  // This will show if user is not yet defined.
                 )}
             </div>
-            <div className='max-w-4xl mx-auto bg-white rounded-2xl'>
-                <h1 className='font-bold text-lg my-5'>Applied Jobs</h1>
+            <div className='max-w-4xl mx-auto bg-white rounded-2xl p-4'>
+                <div className='flex items-center justify-between my-5'>
+                    <h1 className='font-bold text-lg'>Applied Jobs</h1>
+                    <Link to="/saved-jobs">
+                        <Button variant="outline" className="flex items-center gap-2 border-[#7209b7] text-[#7209b7] hover:bg-[#7209b7] hover:text-white">
+                            <Bookmark className="w-4 h-4" /> View Saved Jobs
+                        </Button>
+                    </Link>
+                </div>
                 {/* Applied Job Table */}
                 <AppliedJobTable />
             </div>
