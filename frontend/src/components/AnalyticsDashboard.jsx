@@ -10,7 +10,7 @@ import {
 } from 'recharts'
 import {
   Briefcase, Users, CheckCircle2, XCircle, Clock,
-  TrendingUp, BarChart2, Award
+  TrendingUp, BarChart2, Award, Calendar, AlertTriangle
 } from 'lucide-react'
 
 // ─── Colour tokens ────────────────────────────────────────────────────────────
@@ -125,8 +125,8 @@ const RecruiterDashboard = ({ data }) => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <StatCard icon={Briefcase}    label="Jobs Posted"       value={totalJobs}        sub="total"               color="text-[#6A38C2]"  bg="bg-purple-50"  />
         <StatCard icon={Users}        label="Total Applicants"  value={totalApplicants}  sub="across all jobs"     color="text-indigo-500"  bg="bg-indigo-50"  />
+        <StatCard icon={Calendar}     label="Interviews"        value={data.interviewStats?.scheduled || 0} sub="scheduled"         color="text-blue-500"    bg="bg-blue-50"    />
         <StatCard icon={CheckCircle2} label="Accepted"          value={accepted}         sub="hired"               color="text-green-600"   bg="bg-green-50"   />
-        <StatCard icon={TrendingUp}   label="Acceptance Rate"   value={`${acceptanceRate}%`} sub="of applicants"  color="text-amber-500"   bg="bg-amber-50"   />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -163,8 +163,8 @@ const RecruiterDashboard = ({ data }) => {
         </Section>
       </div>
 
-      {/* Top Jobs Bar chart */}
-      <div className="mt-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+        {/* Top Jobs Bar chart */}
         <Section title="🏆 Top Jobs by Applicants">
           {topJobs.length === 0 ? (
             <p className="text-gray-400 text-sm text-center py-10">No jobs posted yet.</p>
@@ -180,13 +180,31 @@ const RecruiterDashboard = ({ data }) => {
             </ResponsiveContainer>
           )}
         </Section>
+
+        {/* Funnel Chart */}
+        <Section title="🎯 Hiring Funnel Conversion">
+          {data.funnelChart ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={data.funnelChart} barSize={40}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar dataKey="value" name="Count" fill={AMBER} radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="text-gray-400 text-sm text-center py-10">No funnel data available.</p>
+          )}
+        </Section>
       </div>
 
       {/* Extra stat row */}
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard icon={XCircle}   label="Rejected"      value={rejected}  sub="not selected"       color="text-red-500"    bg="bg-red-50"    />
-        <StatCard icon={Clock}     label="Pending"        value={pending}   sub="awaiting action"    color="text-amber-500"  bg="bg-amber-50"  />
-        <StatCard icon={BarChart2} label="This Month"     value={monthlyData[monthlyData.length - 1]?.count ?? 0} sub="applicants received" color="text-indigo-500" bg="bg-indigo-50" />
+      <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+        <StatCard icon={TrendingUp}   label="Acceptance Rate"   value={`${acceptanceRate}%`} sub="of applicants"  color="text-amber-500"   bg="bg-amber-50"   />
+        <StatCard icon={XCircle}      label="Rejected"          value={rejected}  sub="not selected"       color="text-red-500"    bg="bg-red-50"    />
+        <StatCard icon={Clock}        label="Pending"           value={pending}   sub="awaiting action"    color="text-amber-500"  bg="bg-amber-50"  />
+        <StatCard icon={AlertTriangle}label="No Shows"          value={data.interviewStats?.noShows || 0} sub="missed interviews" color="text-red-500" bg="bg-red-50" />
       </div>
     </>
   )
@@ -223,7 +241,7 @@ const AnalyticsDashboard = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <div className="max-w-6xl mx-auto px-4 py-10">
+      <div className="max-w-6xl mx-auto px-4 pt-20 pb-10">
 
         {/* Page header */}
         <div className="mb-8">

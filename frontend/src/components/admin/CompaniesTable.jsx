@@ -22,7 +22,7 @@ const CompaniesTable = () => {
         setFilterCompany(filteredCompany);
     },[companies,searchCompanyByText])
     return (
-        <div>
+        <div className="overflow-x-auto">
             <Table>
                 <TableCaption>A list of your recent registered companies</TableCaption>
                 <TableHeader>

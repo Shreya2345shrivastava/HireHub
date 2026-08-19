@@ -8,37 +8,74 @@ import { Button } from './ui/button'
 import { Search, Briefcase, Clock, CheckCircle2, XCircle, ChevronRight, Building2, Calendar } from 'lucide-react'
 
 // ─── Step config ────────────────────────────────────────────────────────────
-const getSteps = (status, createdAt) => [
-  {
-    label: 'Application Submitted',
-    desc: createdAt ? new Date(createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—',
-    done: true,
-    active: false,
-  },
-  {
-    label: 'Under Recruiter Review',
-    desc: 'Your application is being evaluated',
-    done: status === 'accepted' || status === 'rejected',
-    active: status === 'pending',
-  },
-  {
-    label: 'Decision Reached',
-    desc:
-      status === 'accepted'
-        ? '🎉 Congratulations! Offer received'
-        : status === 'rejected'
-        ? 'Application was not selected'
-        : 'Awaiting decision',
-    done: status === 'accepted' || status === 'rejected',
-    active: false,
-    status,
-  },
-]
+const getSteps = (app) => {
+  const status = app?.status || 'applied';
+  const timeline = app?.timeline || [];
+  const getTimelineDate = (st) => {
+    const entry = timeline.find(t => t.status === st);
+    return entry?.date ? new Date(entry.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
+  };
+
+  const isRejected = status === 'rejected';
+  
+  const stageIndex = {
+    'applied': 0, 'pending': 0,
+    'under_review': 1,
+    'shortlisted': 2,
+    'interview_scheduled': 3,
+    'selected': 4, 'accepted': 4, 'hired': 4,
+    'rejected': 4
+  }[status] ?? 0;
+
+  return [
+    {
+      label: 'Application Submitted',
+      desc: getTimelineDate('applied') || getTimelineDate('pending') || (app?.createdAt ? new Date(app.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'),
+      done: stageIndex >= 0,
+      active: stageIndex === 0,
+    },
+    {
+      label: 'Under Recruiter Review',
+      desc: getTimelineDate('under_review') || 'Your application is being evaluated',
+      done: stageIndex >= 1,
+      active: stageIndex === 1,
+    },
+    {
+      label: 'Shortlisted',
+      desc: getTimelineDate('shortlisted') || (stageIndex >= 2 ? 'You have been shortlisted' : 'Awaiting review'),
+      done: stageIndex >= 2 && !isRejected,
+      active: stageIndex === 2,
+    },
+    {
+      label: 'Interview Scheduled',
+      desc: app?.interviewDate ? `${app.interviewDate} at ${app.interviewTime}` : (getTimelineDate('interview_scheduled') || 'Awaiting interview scheduling'),
+      done: stageIndex >= 3 && !isRejected,
+      active: stageIndex === 3,
+    },
+    {
+      label: 'Decision Reached',
+      desc: isRejected 
+        ? 'Application was not selected' 
+        : stageIndex >= 4 
+          ? '🎉 Congratulations! Offer received' 
+          : 'Awaiting final decision',
+      done: stageIndex >= 4,
+      active: stageIndex === 4,
+      status,
+    },
+  ];
+};
 
 // ─── Status badge colors ─────────────────────────────────────────────────────
 const statusStyle = {
-  pending:  { bg: 'bg-amber-100', text: 'text-amber-700', dot: 'bg-amber-400',  label: 'Pending'  },
-  accepted: { bg: 'bg-green-100', text: 'text-green-700', dot: 'bg-green-500',  label: 'Accepted' },
+  applied:  { bg: 'bg-gray-100', text: 'text-gray-700', dot: 'bg-gray-400',  label: 'Applied'  },
+  pending:  { bg: 'bg-gray-100', text: 'text-gray-700', dot: 'bg-gray-400',  label: 'Applied'  },
+  under_review: { bg: 'bg-amber-100', text: 'text-amber-700', dot: 'bg-amber-400',  label: 'Under Review' },
+  shortlisted: { bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-500',  label: 'Shortlisted' },
+  interview_scheduled: { bg: 'bg-purple-100', text: 'text-purple-700', dot: 'bg-purple-500',  label: 'Interview' },
+  selected: { bg: 'bg-green-100', text: 'text-green-700', dot: 'bg-green-500',  label: 'Selected' },
+  accepted: { bg: 'bg-green-100', text: 'text-green-700', dot: 'bg-green-500',  label: 'Selected' },
+  hired: { bg: 'bg-green-100', text: 'text-green-700', dot: 'bg-green-500',  label: 'Hired' },
   rejected: { bg: 'bg-red-100',   text: 'text-red-700',   dot: 'bg-red-500',    label: 'Rejected' },
 }
 
@@ -93,9 +130,9 @@ const Step = ({ step, index, isLast, status }) => {
 // ─── Application Card ────────────────────────────────────────────────────────
 const ApplicationCard = ({ app }) => {
   const [expanded, setExpanded] = useState(false)
-  const status = app?.status || 'pending'
-  const style = statusStyle[status] || statusStyle.pending
-  const steps = getSteps(status, app?.createdAt)
+  const status = app?.status || 'applied'
+  const style = statusStyle[status] || statusStyle.applied
+  const steps = getSteps(app)
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden">
@@ -145,6 +182,16 @@ const ApplicationCard = ({ app }) => {
               <Step key={idx} step={step} index={idx} isLast={idx === steps.length - 1} status={status} />
             ))}
           </div>
+          {app?.meetingLink && status === 'interview_scheduled' && (
+            <div className="mt-4 p-4 bg-purple-50 rounded-xl border border-purple-100 text-sm">
+                <p className="font-semibold text-purple-900 mb-1">Interview Details</p>
+                <div className="flex flex-col gap-1 text-purple-800">
+                    <span><strong>Date:</strong> {app.interviewDate} at {app.interviewTime}</span>
+                    <span><strong>Link:</strong> <a href={app.meetingLink} target="_blank" rel="noreferrer" className="underline">{app.meetingLink}</a></span>
+                    {app.notes && <span><strong>Notes:</strong> {app.notes}</span>}
+                </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -195,15 +242,20 @@ const ApplicationTracker = () => {
   // Analytics
   const stats = useMemo(() => ({
     total:    jobs.length,
-    pending:  jobs.filter(j => j?.status === 'pending').length,
-    accepted: jobs.filter(j => j?.status === 'accepted').length,
+    inProgress:  jobs.filter(j => ['applied', 'pending', 'under_review', 'shortlisted', 'interview_scheduled'].includes(j?.status)).length,
+    accepted: jobs.filter(j => ['selected', 'accepted', 'hired'].includes(j?.status)).length,
     rejected: jobs.filter(j => j?.status === 'rejected').length,
   }), [jobs])
 
   // Filter + search
   const filtered = useMemo(() => {
     return jobs.filter(j => {
-      const matchFilter = filter === 'all' || j?.status === filter
+      let matchFilter = false;
+      if (filter === 'all') matchFilter = true;
+      else if (filter === 'inProgress') matchFilter = ['applied', 'pending', 'under_review', 'shortlisted', 'interview_scheduled'].includes(j?.status);
+      else if (filter === 'accepted') matchFilter = ['selected', 'accepted', 'hired'].includes(j?.status);
+      else if (filter === 'rejected') matchFilter = j?.status === 'rejected';
+
       const q = search.toLowerCase()
       const matchSearch =
         !q ||
@@ -217,7 +269,7 @@ const ApplicationTracker = () => {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
 
-      <div className="max-w-5xl mx-auto px-4 py-10">
+      <div className="max-w-5xl mx-auto px-4 pt-24 pb-10">
         {/* Page Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">
@@ -229,8 +281,8 @@ const ApplicationTracker = () => {
         {/* Stats Row */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <StatCard icon={Briefcase}    label="Total Applied"  value={stats.total}    color="text-[#6A38C2]" bg="bg-purple-50" />
-          <StatCard icon={Clock}        label="In Review"      value={stats.pending}  color="text-amber-600" bg="bg-amber-50" />
-          <StatCard icon={CheckCircle2} label="Accepted"       value={stats.accepted} color="text-green-600" bg="bg-green-50" />
+          <StatCard icon={Clock}        label="In Progress"    value={stats.inProgress}  color="text-amber-600" bg="bg-amber-50" />
+          <StatCard icon={CheckCircle2} label="Selected"       value={stats.accepted} color="text-green-600" bg="bg-green-50" />
           <StatCard icon={XCircle}      label="Rejected"       value={stats.rejected} color="text-red-500"   bg="bg-red-50" />
         </div>
 
@@ -238,8 +290,8 @@ const ApplicationTracker = () => {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div className="flex flex-wrap gap-2">
             <FilterBtn label="All"      active={filter === 'all'}      onClick={() => setFilter('all')}      count={stats.total}    />
-            <FilterBtn label="Pending"  active={filter === 'pending'}  onClick={() => setFilter('pending')}  count={stats.pending}  />
-            <FilterBtn label="Accepted" active={filter === 'accepted'} onClick={() => setFilter('accepted')} count={stats.accepted} />
+            <FilterBtn label="In Progress"  active={filter === 'inProgress'}  onClick={() => setFilter('inProgress')}  count={stats.inProgress}  />
+            <FilterBtn label="Selected" active={filter === 'accepted'} onClick={() => setFilter('accepted')} count={stats.accepted} />
             <FilterBtn label="Rejected" active={filter === 'rejected'} onClick={() => setFilter('rejected')} count={stats.rejected} />
           </div>
 

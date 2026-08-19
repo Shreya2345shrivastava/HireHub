@@ -1,8 +1,9 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '../ui/dialog'
 import { Button } from '../ui/button'
 import { Avatar, AvatarImage } from '../ui/avatar'
-import { BarChart2, Bell, Bookmark, CheckCheck, LineChart, LogOut, Trash2, User2 } from 'lucide-react'
+import { BarChart2, Bell, Bookmark, CheckCheck, LineChart, LogOut, Trash2, User2, Search, Users } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import axiosInstance from '@/api/axiosInstance'
@@ -23,6 +24,7 @@ const Navbar = () => {
     const { user } = useSelector(store => store.auth);
     const { notifications, unreadCount, currentPage, totalPages } = useSelector(store => store.notification);
     const [isLoadingMore, setIsLoadingMore] = React.useState(false);
+    const [selectedNotification, setSelectedNotification] = useState(null);
 
     const dispatch = useDispatch();
     const navigate = useNavigate();
@@ -41,15 +43,15 @@ const Navbar = () => {
         }
     };
 
-    const markNotificationAsReadHandler = async (id, link) => {
-        try {
-            await axiosInstance.put(`${NOTIFICATION_API_END_POINT}/read/${id}`);
-            dispatch(markNotificationAsReadState(id));
-            if (link) {
-                navigate(link);
+    const handleNotificationClick = async (item) => {
+        setSelectedNotification(item);
+        if (!item.isRead) {
+            try {
+                await axiosInstance.put(`${NOTIFICATION_API_END_POINT}/read/${item._id}`);
+                dispatch(markNotificationAsReadState(item._id));
+            } catch (error) {
+                console.log(error);
             }
-        } catch (error) {
-            console.log(error);
         }
     };
 
@@ -114,8 +116,11 @@ const Navbar = () => {
                                 </>
                             ) : user && user.role === 'recruiter' ? (
                                 <>
-                                    <li><Link to="/recruiter/companies" className="hover:text-primary transition-colors">Companies</Link></li>
-                                    <li><Link to="/recruiter/jobs" className="hover:text-primary transition-colors">Jobs</Link></li>
+                                    <li><Link to="/recruiter/companies" className="hover:text-[#F83002] transition-colors">Companies</Link></li>
+                                    <li><Link to="/recruiter/jobs" className="hover:text-[#F83002] transition-colors">Jobs</Link></li>
+                                    <li><Link to="/recruiter/search" className="hover:text-[#F83002] transition-colors flex items-center gap-1"><Search className="w-4 h-4"/> Search</Link></li>
+                                    <li><Link to="/recruiter/crm" className="hover:text-[#F83002] transition-colors flex items-center gap-1"><Users className="w-4 h-4"/> CRM</Link></li>
+                                    <li><Link to="/recruiter/referrals" className="hover:text-[#F83002] transition-colors flex items-center gap-1"><User2 className="w-4 h-4"/> Referrals</Link></li>
                                 </>
                             ) : (
                                 <>
@@ -186,7 +191,7 @@ const Navbar = () => {
                                                     {notifications.map((item) => (
                                                         <div 
                                                             key={item._id}
-                                                            onClick={() => markNotificationAsReadHandler(item._id, item.link)}
+                                                            onClick={() => handleNotificationClick(item)}
                                                             className={`p-3.5 flex items-start gap-3 cursor-pointer hover:bg-secondary/80 transition ${!item.isRead ? 'bg-primary/5' : ''}`}
                                                         >
                                                             <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${!item.isRead ? 'bg-primary shadow-[0_0_8px_rgba(106,56,194,0.8)]' : 'bg-transparent'}`} />
@@ -304,6 +309,33 @@ const Navbar = () => {
                     }
                 </div>
             </div>
+
+            <Dialog open={!!selectedNotification} onOpenChange={() => setSelectedNotification(null)}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>{selectedNotification?.title}</DialogTitle>
+                        <DialogDescription>
+                            {selectedNotification && formatDistanceToNow(new Date(selectedNotification.createdAt), { addSuffix: true })}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                            {selectedNotification?.message}
+                        </p>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setSelectedNotification(null)}>Close</Button>
+                        {selectedNotification?.link && (
+                            <Button onClick={() => {
+                                navigate(selectedNotification.link);
+                                setSelectedNotification(null);
+                            }}>
+                                Open Page
+                            </Button>
+                        )}
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

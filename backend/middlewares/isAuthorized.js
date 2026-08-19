@@ -57,3 +57,31 @@ export const isStudent = async (req, res, next) => {
         next(error);
     }
 };
+
+/**
+ * isAdmin - Verifies the authenticated user has the "admin" role.
+ * Used for platform-wide Super Admin operations.
+ */
+export const isAdmin = async (req, res, next) => {
+    try {
+        const user = await User.findById(req.id).select("role");
+
+        if (!user) {
+            return res.status(401).json({
+                message: "Authentication failed. User not found.",
+                success: false,
+            });
+        }
+
+        if (user.role !== "admin") {
+            return res.status(403).json({
+                message: "Access denied. Super Admin privileges required.",
+                success: false,
+            });
+        }
+
+        next();
+    } catch (error) {
+        next(error);
+    }
+};

@@ -138,7 +138,7 @@ const AdminCompanies = () => {
                                         </TableCell>
                                         <TableCell>
                                             <div className="font-semibold text-blue-600 bg-blue-50 w-fit px-2 py-1 rounded-md text-xs border border-blue-200">
-                                                {company.trustScore !== undefined ? `${company.trustScore}/100` : "N/A"}
+                                                {company.trustScore !== undefined ? `${company.trustScore}/100` : (company.verificationStatus === 'verified' ? '100/100' : 'N/A')}
                                             </div>
                                         </TableCell>
                                         <TableCell>{company.verificationSubmittedAt?.split("T")[0]}</TableCell>

@@ -4,6 +4,7 @@ import FilterCard from './FilterCard'
 import Job from './Job';
 import { useSelector } from 'react-redux';
 import { motion } from 'framer-motion';
+import JobRecommendations from './student/JobRecommendations';
 
 // const jobsArray = [1, 2, 3, 4, 5, 6, 7, 8];
 
@@ -25,6 +26,9 @@ const Jobs = () => {
                     </p>
                 </div>
             </div>
+
+            {/* AI Job Recommendations */}
+            <JobRecommendations />
 
             <div className='max-w-7xl mx-auto mt-2 px-4 flex-1 w-full'>
                 <div className='flex flex-col lg:flex-row gap-8'>

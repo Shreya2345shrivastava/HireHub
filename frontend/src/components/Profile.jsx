@@ -10,6 +10,7 @@ import UpdateProfileDialog from './UpdateProfileDialog'
 import { useSelector } from 'react-redux'
 import useGetAppliedJobs from '@/hooks/useGetAppliedJobs'
 import { Link } from 'react-router-dom'
+import StudentAIDashboard from './student/StudentAIDashboard'
 
 // const skills = ["Html", "Css", "Javascript", "Reactjs"]
 const isResume = true;
@@ -86,6 +87,9 @@ const Profile = () => {
             </div>
             
             {user?.role === 'student' && (
+                <>
+                {/* AI Dashboards */}
+                <StudentAIDashboard />
                 <div className='max-w-4xl mx-auto bg-card rounded-2xl p-6 shadow-glass border border-border mb-20'>
                     <div className='flex flex-col sm:flex-row items-center justify-between mb-6 gap-4'>
                         <h1 className='font-bold text-xl text-card-foreground'>Applied Jobs</h1>
@@ -105,6 +109,7 @@ const Profile = () => {
                     {/* Applied Job Table */}
                     <AppliedJobTable />
                 </div>
+                </>
             )}
             <UpdateProfileDialog open={open} setOpen={setOpen} />
         </div>

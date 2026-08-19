@@ -77,6 +77,19 @@ const companySchema = new mongoose.Schema({
   },
   headquarters: {
     type: String,
+  },
+  // --- Phase 7: Enterprise Features ---
+  members: [{
+    user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    role: { type: String, enum: ["admin", "recruiter", "hiring_manager", "interviewer"], default: "recruiter" }
+  }],
+  customCareerPage: {
+    slug: { type: String, unique: true, sparse: true },
+    banner: { type: String }, // Cloudinary URL
+    aboutUs: { type: String },
+    culture: { type: String },
+    benefits: [{ type: String }],
+    galleryImages: [{ type: String }]
   }
 }, { timestamps: true });
 

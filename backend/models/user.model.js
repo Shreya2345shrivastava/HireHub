@@ -29,7 +29,43 @@ const userSchema = new mongoose.Schema({
     resume: { type: String }, // URL to resume file
     resumeOriginalName: { type: String },
     company: { type: mongoose.Schema.Types.ObjectId, ref: 'Company' },
-    profilePhoto: { type: String, default: "" }
+    profilePhoto: { type: String, default: "" },
+    parsedResumeData: {
+      extractedSkills: [{ type: String }],
+      experienceYears: { type: Number, default: 0 },
+      education: { type: String, default: "" },
+      projects: [{ type: String }],
+      certifications: [{ type: String }],
+      strengths: [{ type: String }],
+      summary: { type: String, default: "" },
+      links: {
+        github: { type: String, default: "" },
+        linkedin: { type: String, default: "" },
+        portfolio: { type: String, default: "" }
+      }
+    },
+    aiCareerProfile: {
+      careerScore: { type: Number },
+      topSkills: [{ type: String }],
+      missingSkills: [{ type: String }],
+      growthSuggestions: [{ type: String }],
+      learningRoadmap: [{ step: String, description: String }],
+      lastUpdated: { type: Date }
+    },
+    aiResumeOptimizer: {
+      atsScore: { type: Number },
+      missingKeywords: [{ type: String }],
+      weaknesses: [{ type: String }],
+      formattingIssues: [{ type: String }],
+      improvements: [{ type: String }],
+      lastUpdated: { type: Date }
+    },
+    aiJobRecommendations: [{
+      jobId: { type: mongoose.Schema.Types.ObjectId, ref: 'Job' },
+      matchPercentage: { type: Number },
+      matchReasoning: { type: String },
+      generatedAt: { type: Date, default: Date.now }
+    }]
   },
   savedJobs: [{
     type: mongoose.Schema.Types.ObjectId,

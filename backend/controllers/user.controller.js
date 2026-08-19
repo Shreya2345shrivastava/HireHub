@@ -1,8 +1,10 @@
 import { User } from "../models/user.model.js";
+import { Company } from "../models/company.model.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import getDataUri from "../utils/datauri.js";
 import cloudinary from "../utils/cloudinary.js";
+import { parseResumeData } from "../utils/resumeParser.js";
 import nodemailer from "nodemailer";
 import { Notification } from "../models/notification.model.js";
 import { createAuditLog } from "../services/audit.service.js";
@@ -289,29 +291,11 @@ export const logout = async (req, res, next) => {
 
 export const updateProfile = async (req, res, next) => {
     try {
-        const { fullname, email, phoneNumber, bio, skills, otp } = req.validatedData || req.body;
+        const { fullname, email, phoneNumber, bio, skills } = req.validatedData || req.body;
 
         let user = await User.findById(req.id);
         if (!user) {
             return res.status(404).json({ message: "User not found.", success: false });
-        }
-
-        // Verify OTP before allowing profile update
-        if (!user.otp || !user.otpExpiry) {
-            return res.status(400).json({ message: "OTP verification required to update profile.", success: false });
-        }
-
-        if (new Date() > new Date(user.otpExpiry)) {
-            return res.status(400).json({ message: "OTP has expired.", success: false });
-        }
-
-        if (!otp) {
-            return res.status(400).json({ message: "OTP is required for profile updates.", success: false });
-        }
-
-        const isOtpValid = await bcrypt.compare(otp, user.otp);
-        if (!isOtpValid) {
-            return res.status(400).json({ message: "Invalid OTP.", success: false });
         }
 
         const file = req.file;
@@ -323,11 +307,23 @@ export const updateProfile = async (req, res, next) => {
         // Handle resume vs profile photo based on file MIME type
         if (file) {
             const fileUri = getDataUri(file);
-            const cloudResponse = await cloudinary.uploader.upload(fileUri.content);
             if (file.mimetype === "application/pdf") {
+                const cloudResponse = await cloudinary.uploader.upload(fileUri.content, { 
+                    resource_type: "raw",
+                    public_id: `resume_${Date.now()}.pdf`
+                });
                 user.profile.resume = cloudResponse.secure_url;
                 user.profile.resumeOriginalName = file.originalname;
+                
+                try {
+                    // Extract structured data from the uploaded resume buffer
+                    const parsedData = await parseResumeData(file.buffer);
+                    user.profile.parsedResumeData = parsedData;
+                } catch (err) {
+                    console.error("Error parsing resume during upload:", err);
+                }
             } else {
+                const cloudResponse = await cloudinary.uploader.upload(fileUri.content);
                 user.profile.profilePhoto = cloudResponse.secure_url;
             }
         }
@@ -337,10 +333,6 @@ export const updateProfile = async (req, res, next) => {
         if (phoneNumber) user.phoneNumber = phoneNumber;
         if (bio !== undefined) user.profile.bio = bio;
         if (skills) user.profile.skills = skillsArray;
-
-        // Clear OTP after successful profile update
-        user.otp = null;
-        user.otpExpiry = null;
 
         await user.save();
 
@@ -446,6 +438,56 @@ export const getAnalytics = async (req, res, next) => {
         };
 
         return res.status(200).json({ ...result, success: true });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// --- PHASE 7: ENTERPRISE FEATURES ---
+
+export const searchCandidates = async (req, res, next) => {
+    try {
+        const { keyword, skills, experience, location } = req.query;
+        
+        let query = { role: 'student' };
+
+        // Advanced Search Query Building
+        if (keyword) {
+            query.$or = [
+                { fullname: { $regex: keyword, $options: 'i' } },
+                { 'profile.bio': { $regex: keyword, $options: 'i' } },
+                { 'profile.skills': { $regex: keyword, $options: 'i' } }
+            ];
+        }
+
+        if (skills) {
+            const skillArray = skills.split(',').map(s => s.trim());
+            // Match any of the skills
+            query['profile.skills'] = { $in: skillArray.map(s => new RegExp(s, 'i')) };
+        }
+
+        // Search in users
+        const candidates = await User.find(query)
+            .select('-password')
+            .limit(50); // Limit for performance
+
+        // Filter by experience if provided (since experience might be in parsed resume)
+        // Note: For true enterprise scalability, experience should be a top-level indexed field.
+        let filteredCandidates = candidates;
+        if (experience) {
+            const expNum = parseInt(experience);
+            filteredCandidates = candidates.filter(c => {
+                const cExp = c.profile?.aiCareerProfile?.parsedResume?.experienceYears || 0;
+                return cExp >= expNum;
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            count: filteredCandidates.length,
+            candidates: filteredCandidates
+        });
+
     } catch (error) {
         next(error);
     }

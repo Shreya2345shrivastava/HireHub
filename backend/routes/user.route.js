@@ -1,5 +1,5 @@
 import express from "express";
-import { getSavedJobs, getAnalytics, login, logout, register, toggleSaveJob, updateProfile, verifyOTP } from "../controllers/user.controller.js";
+import { getSavedJobs, getAnalytics, login, logout, register, toggleSaveJob, updateProfile, verifyOTP, searchCandidates } from "../controllers/user.controller.js";
 import isAuthenticated from "../middlewares/isAuthenticated.js";
 import { singleUpload } from "../middlewares/mutler.js";
 import { authLimiter, signupLimiter } from "../middlewares/rateLimiter.js";
@@ -19,5 +19,8 @@ router.route("/profile/update").post(isAuthenticated, singleUpload, validate(upd
 router.route("/save-job/:id").post(isAuthenticated, toggleSaveJob);
 router.route("/saved-jobs").get(isAuthenticated, getSavedJobs);
 router.route("/analytics").get(isAuthenticated, getAnalytics);
+
+// Phase 7: Enterprise
+router.route("/search").get(isAuthenticated, searchCandidates);
 
 export default router;

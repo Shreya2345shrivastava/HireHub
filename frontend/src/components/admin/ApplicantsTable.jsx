@@ -26,7 +26,7 @@ const ApplicantsTable = () => {
     }
 
     return (
-        <div>
+        <div className="overflow-x-auto">
             <Table>
                 <TableCaption>A list of your recent applied user</TableCaption>
                 <TableHeader>

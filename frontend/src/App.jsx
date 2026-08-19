@@ -15,16 +15,25 @@ import AdminJobs from "./components/admin/AdminJobs";
 import PostJob from './components/admin/PostJob'
 import Applicants from './components/admin/Applicants'
 import ProtectedRoute from './components/admin/ProtectedRoute'
+import InterviewDashboard from './components/student/InterviewDashboard'
+import InterviewDetails from './components/shared/InterviewDetails'
+import CandidateProfile from './components/admin/CandidateProfile'
 import OTPVerification from './components/auth/OTPverification'
 import Payment from './components/Payment'
 import SavedJobs from './components/SavedJobs'
 import ApplicationTracker from './components/ApplicationTracker'
 import AnalyticsDashboard from './components/AnalyticsDashboard'
+import CandidateSearch from './components/admin/CandidateSearch'
+import CRM from './components/admin/CRM'
+import Referrals from './components/admin/Referrals'
 import AdminRoute from './components/admin/super/AdminRoute'
+import StudentProtectedRoute from './components/student/StudentProtectedRoute'
+import AuthRoute from './components/auth/AuthRoute'
 import AdminLayout from './components/admin/super/AdminLayout'
 import AdminCompanies from './components/admin/super/AdminCompanies'
 import AdminActivityTimeline from './components/admin/super/AdminActivityTimeline'
 import PublicCompanyProfile from './components/company/PublicCompanyProfile'
+import PublicCareerPage from './components/PublicCareerPage'
 
 
 
@@ -50,27 +59,31 @@ const appRouter = createBrowserRouter([
   },
   {
     path: "/jobs",
-    element: <Jobs />
+    element: <StudentProtectedRoute><Jobs /></StudentProtectedRoute>
   },
   {
     path: "/saved-jobs",
-    element: <SavedJobs />
+    element: <StudentProtectedRoute><SavedJobs /></StudentProtectedRoute>
   },
   {
     path: "/application-tracker",
-    element: <ApplicationTracker />
+    element: <StudentProtectedRoute><ApplicationTracker /></StudentProtectedRoute>
   },
   {
     path: "/analytics",
-    element: <AnalyticsDashboard />
+    element: <AuthRoute><AnalyticsDashboard /></AuthRoute>
   },
   {
     path: "/description/:id",
-    element: <JobDescription />
+    element: <AuthRoute><JobDescription /></AuthRoute>
   },
   {
     path: "/company/:id",
     element: <PublicCompanyProfile />
+  },
+  {
+    path: "/h/:slug",
+    element: <PublicCareerPage />
   },
   {
     path: "/browse",
@@ -78,7 +91,15 @@ const appRouter = createBrowserRouter([
   },
   {
     path: "/profile",
-    element: <Profile />
+    element: <StudentProtectedRoute><Profile /></StudentProtectedRoute>
+  },
+  {
+    path: "/interviews",
+    element: <StudentProtectedRoute><InterviewDashboard /></StudentProtectedRoute>
+  },
+  {
+    path: "/interviews/:id",
+    element: <StudentProtectedRoute><InterviewDetails /></StudentProtectedRoute>
   },
   // Recruiter routes
   {
@@ -102,8 +123,28 @@ const appRouter = createBrowserRouter([
     element:<ProtectedRoute><AdminJobs/></ProtectedRoute> 
   },
   {
+    path:"/recruiter/search",
+    element:<ProtectedRoute><CandidateSearch/></ProtectedRoute>
+  },
+  {
+    path:"/recruiter/crm",
+    element:<ProtectedRoute><CRM/></ProtectedRoute>
+  },
+  {
+    path:"/recruiter/referrals",
+    element:<ProtectedRoute><Referrals/></ProtectedRoute>
+  },
+  {
     path:"/recruiter/jobs/create",
     element:<ProtectedRoute><PostJob/></ProtectedRoute> 
+  },
+  {
+    path:"/admin/jobs/:id/applicants",
+    element:<ProtectedRoute><Applicants/></ProtectedRoute>
+  },
+  {
+    path:"/recruiter/candidate/:applicationId",
+    element:<ProtectedRoute><CandidateProfile/></ProtectedRoute>
   },
   {
     path:"/recruiter/jobs/:id/applicants",

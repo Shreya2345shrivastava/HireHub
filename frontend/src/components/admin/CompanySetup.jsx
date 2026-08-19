@@ -13,6 +13,7 @@ import useGetCompanyById from '@/hooks/useGetCompanyById'
 import VerificationBadge from './VerificationBadge'
 import { Badge } from '../ui/badge'
 import { ShieldCheck } from 'lucide-react'
+import CareerPageBuilder from './CareerPageBuilder'
 
 const CompanySetup = () => {
     const params = useParams();
@@ -156,6 +157,8 @@ const CompanySetup = () => {
                         Go to KYC Verification
                     </Button>
                 </div>
+
+                <CareerPageBuilder company={singleCompany} />
             </div>
 
         </div>

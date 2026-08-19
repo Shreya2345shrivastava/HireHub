@@ -24,7 +24,7 @@ const AdminJobsTable = () => {
         setFilterJobs(filteredJobs);
     },[allAdminJobs,searchJobByText])
     return (
-        <div>
+        <div className="overflow-x-auto">
             <Table>
                 <TableCaption>A list of your recent  posted jobs</TableCaption>
                 <TableHeader>

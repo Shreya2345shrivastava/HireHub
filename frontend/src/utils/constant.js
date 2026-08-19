@@ -9,3 +9,5 @@ export const COMPANY_API_END_POINT = "/api/v1/company";
 export const NOTIFICATION_API_END_POINT = "/api/v1/notification";
 export const ANALYTICS_API_END_POINT = "/api/v1/analytics";
 export const ADMIN_API_END_POINT = "/api/v1/admin";
+export const INTERVIEW_API_END_POINT = "/api/v1/interview";
+export const AI_API_END_POINT = "/api/v1/ai";

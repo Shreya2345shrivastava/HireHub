@@ -15,6 +15,10 @@ import notificationRoute from "./routes/notification.route.js";
 import analyticsRoute from "./routes/analytics.route.js";
 import adminRoute from "./routes/admin.route.js";
 import auditRoute from "./routes/audit.route.js";
+import interviewRoute from "./routes/interview.route.js";
+import aiRoute from "./routes/ai.route.js";
+import crmRoute from "./routes/crm.route.js";
+import referralRoute from "./routes/referral.route.js";
 import errorHandler from "./middlewares/errorHandler.js";
 
 import { Server } from "socket.io";
@@ -109,6 +113,10 @@ app.use("/api/v1/notification", notificationRoute);
 app.use("/api/v1/analytics", analyticsRoute);
 app.use("/api/v1/admin", adminRoute);
 app.use("/api/v1/audit", auditRoute);
+app.use("/api/v1/interview", interviewRoute);
+app.use("/api/v1/ai", aiRoute);
+app.use("/api/v1/crm", crmRoute);
+app.use("/api/v1/referral", referralRoute);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {

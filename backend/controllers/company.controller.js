@@ -302,3 +302,110 @@ export const submitVerification = async (req, res, next) => {
         next(error);
     }
 };
+
+// --- PHASE 7: ENTERPRISE FEATURES ---
+
+export const inviteMember = async (req, res, next) => {
+    try {
+        const { email, role } = req.body;
+        const company = await Company.findById(req.params.id);
+
+        if (!company) return res.status(404).json({ message: "Company not found", success: false });
+
+        // Ensure user is the creator (Super Admin logic)
+        if (company.userId.toString() !== req.id.toString()) {
+            return res.status(403).json({ message: "Only the company creator can invite members", success: false });
+        }
+
+        const userToInvite = await User.findOne({ email });
+        if (!userToInvite) return res.status(404).json({ message: "User with this email not found", success: false });
+
+        // Check if already a member
+        if (company.members.some(member => member.user.toString() === userToInvite._id.toString())) {
+            return res.status(400).json({ message: "User is already a member", success: false });
+        }
+
+        company.members.push({ user: userToInvite._id, role: role || 'recruiter' });
+        await company.save();
+
+        return res.status(200).json({ message: "Member invited successfully", company, success: true });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const removeMember = async (req, res, next) => {
+    try {
+        const { memberId } = req.body;
+        const company = await Company.findById(req.params.id);
+
+        if (!company) return res.status(404).json({ message: "Company not found", success: false });
+
+        if (company.userId.toString() !== req.id.toString()) {
+            return res.status(403).json({ message: "Only the company creator can remove members", success: false });
+        }
+
+        company.members = company.members.filter(member => member.user.toString() !== memberId);
+        await company.save();
+
+        return res.status(200).json({ message: "Member removed successfully", company, success: true });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const updateCareerPage = async (req, res, next) => {
+    try {
+        const { slug, aboutUs, culture, benefits } = req.body;
+        const company = await Company.findById(req.params.id);
+
+        if (!company) return res.status(404).json({ message: "Company not found", success: false });
+
+        // Check ownership or admin role
+        if (company.userId.toString() !== req.id.toString()) {
+            const isMember = company.members.find(m => m.user.toString() === req.id.toString() && m.role === 'admin');
+            if (!isMember) return res.status(403).json({ message: "Not authorized to update career page", success: false });
+        }
+
+        if (!company.customCareerPage) company.customCareerPage = {};
+
+        // Unique slug check
+        if (slug && slug !== company.customCareerPage.slug) {
+            const existingSlug = await Company.findOne({ 'customCareerPage.slug': slug });
+            if (existingSlug) return res.status(400).json({ message: "Slug is already taken", success: false });
+            company.customCareerPage.slug = slug;
+        }
+
+        if (aboutUs) company.customCareerPage.aboutUs = aboutUs;
+        if (culture) company.customCareerPage.culture = culture;
+        if (benefits) company.customCareerPage.benefits = Array.isArray(benefits) ? benefits : JSON.parse(benefits);
+
+        // Upload banner if present
+        if (req.file) {
+            const fileUri = getDataUri(req.file);
+            const cloudResponse = await cloudinary.uploader.upload(fileUri.content);
+            company.customCareerPage.banner = cloudResponse.secure_url;
+        }
+
+        await company.save();
+
+        return res.status(200).json({ message: "Career page updated successfully", company, success: true });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getCareerPageBySlug = async (req, res, next) => {
+    try {
+        const { slug } = req.params;
+        const company = await Company.findOne({ 'customCareerPage.slug': slug });
+
+        if (!company) return res.status(404).json({ message: "Career page not found", success: false });
+
+        const jobs = await Job.find({ company: company._id }).sort({ createdAt: -1 });
+
+        return res.status(200).json({ company, jobs, success: true });
+    } catch (error) {
+        next(error);
+    }
+};

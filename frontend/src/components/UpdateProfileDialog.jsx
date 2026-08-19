@@ -52,7 +52,7 @@ const UpdateProfileDialog = ({ open, setOpen }) => {
                 }
             });
             if (res.data.success) {
-                dispatch(setUser(res.data.user));
+                dispatch(setUser(res.data));
                 toast.success(res.data.message);
             }
         } catch (error) {
@@ -69,7 +69,7 @@ const UpdateProfileDialog = ({ open, setOpen }) => {
 
     return (
         <div>
-            <Dialog open={open}>
+            <Dialog open={open} onOpenChange={setOpen}>
                 <DialogContent className="sm:max-w-[425px]" onInteractOutside={() => setOpen(false)}>
                     <DialogHeader>
                         <DialogTitle>Update Profile</DialogTitle>
@@ -130,14 +130,20 @@ const UpdateProfileDialog = ({ open, setOpen }) => {
                             </div>
                             <div className='grid grid-cols-4 items-center gap-4'>
                                 <Label htmlFor="file" className="text-right">Resume</Label>
-                                <Input
-                                    id="file"
-                                    name="file"
-                                    type="file"
-                                    accept="application/pdf"
-                                    onChange={fileChangeHandler}
-                                    className="col-span-3"
-                                />
+                                <div className="col-span-3 flex flex-col gap-1">
+                                    <Input
+                                        id="file"
+                                        name="file"
+                                        type="file"
+                                        accept="application/pdf"
+                                        onChange={fileChangeHandler}
+                                    />
+                                    {user?.profile?.resumeOriginalName && (
+                                        <p className="text-xs text-muted-foreground ml-1">
+                                            Current: {user.profile.resumeOriginalName}
+                                        </p>
+                                    )}
+                                </div>
                             </div>
                         </div>
                         <DialogFooter>

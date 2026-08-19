@@ -1,5 +1,6 @@
 import { Application } from "../models/application.model.js";
 import { Job } from "../models/job.model.js";
+import { Interview } from "../models/interview.model.js";
 
 // ─── Student Analytics ────────────────────────────────────────────────────────
 export const getStudentAnalytics = async (req, res) => {
@@ -12,9 +13,9 @@ export const getStudentAnalytics = async (req, res) => {
       .sort({ createdAt: 1 });
 
     const total = applications.length;
-    const accepted = applications.filter(a => a.status === "accepted").length;
+    const accepted = applications.filter(a => ["selected", "hired"].includes(a.status)).length;
     const rejected = applications.filter(a => a.status === "rejected").length;
-    const pending  = applications.filter(a => a.status === "pending").length;
+    const pending  = applications.filter(a => ["applied", "under_review", "shortlisted", "interview_scheduled"].includes(a.status)).length;
     const acceptanceRate = total > 0 ? Math.round((accepted / total) * 100) : 0;
 
     // Monthly breakdown — last 6 months
@@ -89,9 +90,9 @@ export const getRecruiterAnalytics = async (req, res) => {
       jobStats.push({ name: job.title.length > 20 ? job.title.slice(0, 20) + "…" : job.title, applicants: apps.length });
 
       apps.forEach(app => {
-        if (app.status === "accepted") accepted++;
+        if (["selected", "hired"].includes(app.status)) accepted++;
         else if (app.status === "rejected") rejected++;
-        else pending++;
+        else if (["applied", "under_review", "shortlisted", "interview_scheduled", "pending"].includes(app.status)) pending++;
 
         // Monthly grouping
         const d = new Date(app.createdAt);
@@ -113,6 +114,19 @@ export const getRecruiterAnalytics = async (req, res) => {
       { name: "Rejected", value: rejected, color: "#ef4444" },
     ].filter(s => s.value > 0);
 
+    const interviews = await Interview.find({ recruiterId });
+    const interviewsScheduled = interviews.length;
+    const completedInterviews = interviews.filter(i => i.status === 'Completed').length;
+    const noShows = interviews.filter(i => i.status === 'No Show').length;
+    
+    // Funnel Chart Data
+    // Applied -> Interviewed -> Hired
+    const funnelChart = [
+      { name: "Applied", value: totalApplicants },
+      { name: "Interviewed", value: interviewsScheduled },
+      { name: "Hired", value: accepted }
+    ];
+
     return res.status(200).json({
       success: true,
       totalJobs,
@@ -124,6 +138,106 @@ export const getRecruiterAnalytics = async (req, res) => {
       topJobs,
       monthlyData,
       statusBreakdown,
+      interviewStats: {
+        scheduled: interviewsScheduled,
+        completed: completedInterviews,
+        noShows: noShows
+      },
+      funnelChart
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Server error", success: false });
+  }
+};
+
+export const getAiInsights = async (req, res, next) => {
+  try {
+    const userId = req.id;
+
+    const jobs = await Job.find({ created_by: userId }).populate("applications");
+    const jobIds = jobs.map(j => j._id);
+
+    const applications = await Application.find({ job: { $in: jobIds } }).populate("applicant job");
+
+    if (applications.length === 0) {
+      return res.status(200).json({
+        success: true,
+        topCandidate: null,
+        avgMatchScore: 0,
+        appsThisWeek: 0,
+        hiringFunnel: { applied: 0, interview: 0, selected: 0 },
+        hardestSkill: "N/A"
+      });
+    }
+
+    // Top Candidate
+    let topCandidate = applications[0];
+    for (const app of applications) {
+      if ((app.rankScore || 0) > (topCandidate.rankScore || 0)) {
+        topCandidate = app;
+      }
+    }
+
+    // Average Match Score
+    const totalMatch = applications.reduce((acc, app) => acc + (app.matchScore || 0), 0);
+    const avgMatchScore = Math.round(totalMatch / applications.length);
+
+    // Apps this week
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    const appsThisWeek = applications.filter(app => new Date(app.createdAt) > oneWeekAgo).length;
+
+    // Hiring Funnel
+    let interview = 0, selected = 0;
+    applications.forEach(app => {
+      const status = app.status;
+      if (['interview_scheduled', 'selected', 'hired'].includes(status)) interview++;
+      if (['selected', 'hired'].includes(status)) selected++;
+    });
+
+    const hiringFunnel = {
+      applied: applications.length,
+      interview,
+      selected
+    };
+
+    // Hardest Skill (simplified)
+    let hardestSkill = "System Design";
+    const reqCounts = {};
+    jobs.forEach(job => {
+      (job.requirements || []).forEach(req => {
+        reqCounts[req] = (reqCounts[req] || 0) + 1;
+      });
+    });
+    const candidateSkillCounts = {};
+    applications.forEach(app => {
+      const skills = app.applicant?.profile?.parsedResumeData?.extractedSkills || app.applicant?.profile?.skills || [];
+      skills.forEach(skill => {
+        candidateSkillCounts[skill.toLowerCase()] = (candidateSkillCounts[skill.toLowerCase()] || 0) + 1;
+      });
+    });
+    
+    let lowestRatio = Infinity;
+    for (const req of Object.keys(reqCounts)) {
+      const have = candidateSkillCounts[req.toLowerCase()] || 0;
+      const need = reqCounts[req];
+      const ratio = have / need;
+      if (ratio < lowestRatio) {
+        lowestRatio = ratio;
+        hardestSkill = req;
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      topCandidate: topCandidate.applicant?.fullname || "N/A",
+      topCandidateRole: topCandidate.job?.title || "",
+      topCandidateScore: topCandidate.rankScore || 0,
+      avgMatchScore,
+      appsThisWeek,
+      hiringFunnel,
+      hardestSkill
     });
   } catch (error) {
     console.error(error);
