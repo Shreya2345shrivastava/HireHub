@@ -1,14 +1,15 @@
 import React, { useEffect, useState } from 'react'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { APPLICATION_API_END_POINT, JOB_API_END_POINT, USER_API_END_POINT } from '@/utils/constant';
 import { setSingleJob } from '@/redux/jobSlice';
 import { setUser } from '@/redux/authSlice';
 import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'sonner';
 import axiosInstance from '@/api/axiosInstance';
-import { Bookmark, BookmarkCheck } from 'lucide-react';
+import { Bookmark, BookmarkCheck, MapPin } from 'lucide-react';
+import VerificationBadge from './admin/VerificationBadge';
 
 const JobDescription = () => {
     const { singleJob } = useSelector(store => store.job);
@@ -20,6 +21,7 @@ const JobDescription = () => {
 
     const params = useParams();
     const jobId = params.id;
+    const navigate = useNavigate();
     const dispatch = useDispatch();
 
     const applyJobHandler = async () => {
@@ -104,6 +106,18 @@ const JobDescription = () => {
             </div>
             <h1 className='border-b-2 border-b-gray-300 font-medium py-4 text-lg mt-6'>Job Description</h1>
             <div className='my-4 space-y-2'>
+                <div className='flex items-center font-bold'>
+                    Company: 
+                    <span 
+                        onClick={() => navigate(`/company/${singleJob?.company?._id}`)}
+                        className='pl-4 font-normal text-gray-800 capitalize hover:text-cyan-600 hover:underline cursor-pointer'
+                    >
+                        {singleJob?.company?.name}
+                    </span>
+                    {singleJob?.company?.verificationStatus && singleJob?.company?.verificationStatus !== "unverified" && (
+                        <VerificationBadge status={singleJob?.company?.verificationStatus} className="ml-2" />
+                    )}
+                </div>
                 <h1 className='font-bold'>Role: <span className='pl-4 font-normal text-gray-800'>{singleJob?.title}</span></h1>
                 <h1 className='font-bold'>Location: <span className='pl-4 font-normal text-gray-800'>{singleJob?.location}</span></h1>
                 <h1 className='font-bold'>Description: <span className='pl-4 font-normal text-gray-800'>{singleJob?.description}</span></h1>

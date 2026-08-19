@@ -1,10 +1,29 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from './ui/table'
 import { Badge } from './ui/badge'
-import { useSelector } from 'react-redux'
+import { useSelector, useDispatch } from 'react-redux'
+import { useSocket } from '@/context/SocketContext'
+import { updateAppliedJobStatus } from '@/redux/jobSlice'
+import { toast } from 'sonner'
 
 const AppliedJobTable = () => {
     const {allAppliedJobs} = useSelector(store=>store.job);
+    const dispatch = useDispatch();
+    const socket = useSocket();
+
+    useEffect(() => {
+        if (!socket) return;
+
+        socket.on("status_updated", (data) => {
+            dispatch(updateAppliedJobStatus(data));
+            toast.info(`Update! Your application for "${data.jobTitle}" is now ${data.status.toUpperCase()}`);
+        });
+
+        return () => {
+            socket.off("status_updated");
+        };
+    }, [socket, dispatch]);
+
     return (
         <div>
             <Table>
@@ -21,7 +40,7 @@ const AppliedJobTable = () => {
                     {
                         !allAppliedJobs || allAppliedJobs.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={4} className="text-center text-gray-500 py-4">
+                                <TableCell colSpan={4} className="text-center text-muted-foreground py-4">
                                     You haven't applied to any jobs yet.
                                 </TableCell>
                             </TableRow>

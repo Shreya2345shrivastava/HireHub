@@ -11,7 +11,7 @@ const userSchema = new mongoose.Schema({
     unique: true
   },
   phoneNumber: {
-    type: Number,
+    type: String,  // Must be String — Number destroys leading zeros (e.g. +91 0123... → 123...)
     required: true
   },
   password: {
@@ -20,7 +20,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['student', 'recruiter'],
+    enum: ['student', 'recruiter', 'admin'],
     required: true
   },
   profile: {

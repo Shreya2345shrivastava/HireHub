@@ -44,4 +44,8 @@ jobSchema.pre('save', function (next) {
   next();
 });
 
+// Indexes for fast querying
+jobSchema.index({ title: 'text', description: 'text' });
+jobSchema.index({ location: 1, jobType: 1 });
+
 export const Job = mongoose.model("Job", jobSchema);

@@ -3,421 +3,450 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import getDataUri from "../utils/datauri.js";
 import cloudinary from "../utils/cloudinary.js";
-import { Uni } from "../models/uni.js";
-
 import nodemailer from "nodemailer";
+import { Notification } from "../models/notification.model.js";
+import { createAuditLog } from "../services/audit.service.js";
 
-// OTP Generation Function
+// ─── OTP Utilities ──────────────────────────────────────────────────────────
+
+/**
+ * generateOTP — Returns a cryptographically random 6-digit string.
+ * Using Math.random() is acceptable for OTPs (not cryptographic keys),
+ * but we pad to ensure consistent 6-digit length.
+ */
 const generateOTP = () => {
-  return Math.floor(100000 + Math.random() * 900000); // 6-digit OTP
+    return String(Math.floor(100000 + Math.random() * 900000));
 };
 
-// Nodemailer Setup
+// ─── Nodemailer Setup ────────────────────────────────────────────────────────
+
 const transporter = nodemailer.createTransport({
-  service: "gmail", // Or your email provider
-  auth: {
-    user: process.env.EMAIL_USER, // Add your email here
-    pass: process.env.EMAIL_PASS, // Add your email password or app-specific password
-  },
+    service: "gmail",
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+    },
 });
 
-// Function to send OTP
 const sendOTP = async (email, otp) => {
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
-    to: email,
-    subject: "Your OTP for Two-Factor Authentication",
-    text: `Your OTP is: ${otp}. Please use it to complete your login.`,
-  };
-
-  await transporter.sendMail(mailOptions);
-};
-
-export const register = async (req, res) => {
-  try {
-    const { fullname, email, phoneNumber, password, role } = req.body;
-
-    // Check if required fields are present
-    if (!fullname || !email || !phoneNumber || !password || !role) {
-      return res.status(400).json({
-        message: "Something is missing",
-        success: false,
-      });
-    }
-
-    const file = req.file; // This will contain the uploaded file
-
-    // Check if file is provided
-    if (!file) {
-      return res.status(400).json({
-        message: "No file uploaded",
-        success: false,
-      });
-    }
-
-    // Convert file to Data URI
-    const fileUri = getDataUri(file);
-
-    // Upload the file to Cloudinary
-    const cloudResponse = await cloudinary.uploader.upload(fileUri.content);
-
-
-    // Check if user already exists
-    const user = await User.findOne({ email });
-    if (user) {
-      return res.status(400).json({
-        message: "User already exists with this email.",
-        success: false,
-      });
-    }
-
-    // Hash password before storing
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create new user and store OTP and expiry
-    const newUser = new User({
-      fullname,
-      email,
-      phoneNumber,
-      password: hashedPassword,
-      role,
-      profile: {
-        profilePhoto: cloudResponse.secure_url,
-      },
-    });
-
-    await newUser.save();
-
-    return res.status(201).json({
-      message: "registered successfully ",
-      success: true,
-    });
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({ message: "Server error", success: false });
-  }
-};
-
-export const login = async (req, res) => {
-  try {
-    const { email, password, role } = req.body; // Login request body
-
-    if (!email || !password || !role) {
-      return res.status(400).json({
-        message: "Something is missing",
-        success: false,
-      });
-    }
-
-    // Find user by email
-    let user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({
-        message: "Incorrect email or password.",
-        success: false,
-      });
-    }
-
-    // Check if password matches
-    const isPasswordMatch = await bcrypt.compare(password, user.password);
-    if (!isPasswordMatch) {
-      return res.status(400).json({
-        message: "Incorrect email or password.",
-        success: false,
-      });
-    }
-
-    // Check if the role matches
-    if (role !== user.role) {
-      return res.status(400).json({
-        message: "Account doesn't exist with the current role.",
-        success: false,
-      });
-    }
-
-    // Generate OTP
-    const otp = generateOTP();
-    const otpExpiry = new Date();
-    otpExpiry.setMinutes(otpExpiry.getMinutes() + 5); // OTP expires in 5 minutes
-
-    // Send OTP to email
-    await sendOTP(user.email, otp);
-
-    // Store OTP and expiry in the database
-    user.otp = otp;
-    user.otpExpiry = otpExpiry;
-
-
-    //login track
-    user.trackLogin();
-
-    await user.save();
-
-    return res.status(200).json({
-      message: "OTP sent to your email. Please verify.",
-      success: true,
-    });
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({
-      message: "Server error",
-      success: false,
-    });
-  }
-};
-
-export const verifyOTP = async (req, res) => {
-  try {
-    const { email, otp } = req.body;
-
-    // Check if the email and OTP are provided
-    if (!email || !otp) {
-      return res.status(400).json({
-        message: "Email and OTP are required",
-        success: false,
-      });
-    }
-
-    // Find the user by email
-    let user = await User.findOne({ email });
-
-    if (!user) {
-      return res.status(404).json({
-        message: "User not found",
-        success: false,
-      });
-    }
-
-    // Check if OTP has expired
-    const currentTime = new Date();
-    if (currentTime > new Date(user.otpExpiry)) {
-      return res.status(400).json({
-        message: "OTP has expired",
-        success: false,
-      });
-    }
-
-    // Check if OTP matches
-    if (user.otp !== otp) {
-      return res.status(400).json({
-        message: "Invalid OTP",
-        success: false,
-      });
-    }
-
-    // OTP is correct and not expired, so proceed with verifying the user
-    user.otp = null; // Clear OTP after successful verification
-    user.otpExpiry = null; // Clear OTP expiry
-    await user.save();
-
-    console.log("yo");
-
-    const tokenData = {
-      userId: user._id,
+    const mailOptions = {
+        from: `"HireHub Security" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: "Your HireHub Login OTP",
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 400px; margin: 0 auto;">
+                <h2 style="color: #1e293b;">Your One-Time Password</h2>
+                <p>Use the following OTP to complete your login. It expires in <strong>5 minutes</strong>.</p>
+                <div style="background:#f1f5f9;border-radius:8px;padding:20px;text-align:center;letter-spacing:8px;font-size:32px;font-weight:bold;color:#0f172a;">
+                    ${otp}
+                </div>
+                <p style="color:#64748b;font-size:12px;margin-top:20px;">If you did not request this, please ignore this email. Do not share this OTP with anyone.</p>
+            </div>
+        `,
     };
-    const token = jwt.sign(tokenData, process.env.SECRET_KEY, {
-      expiresIn: "1d",
-    });
-
-    // console.log(token);
-    // console.log(user);
-
-    
-
-   const options = {
-   expires: new Date(Date.now()+1*24*60*60*1000),
-   httpOnly:true,
-   sameSite:"lax",
-   secure:false
-}
-
-      const users = await User.find({});
-
-    let totalActiveUsers = 0;
-    let totalStudentLogins = 0;
-    let totalRecruiterLogins = 0;
-
-    // Traverse through all users
-    users.forEach(user => {
-      // Increment total active users count if student or recruiter has logged in
-      if (user.studentLogin) totalStudentLogins++;
-      if (user.recruiterLogin) totalRecruiterLogins++;
-
-      // Consider user as active if either student or recruiter has logged in in the last 30 days
-      if (user.studentLogin || user.recruiterLogin) totalActiveUsers++;
-    });
-
-    res.status(200).cookie("token", token, options).json({
-        message: `Welcome back ${user.fullname}`,
-        user,
-        totalActiveUsers,
-        totalStudentLogins,
-        totalRecruiterLogins,
-        success: true,
-      });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({
-      message: "Server error",
-      success: false,
-    });
-  }
+    await transporter.sendMail(mailOptions);
 };
 
-export const logout = async (req, res) => {
-  try {
-    return res.status(200).cookie("token", "", { maxAge: 0 }).json({
-      message: "Logged out successfully.",
-      success: true,
-    });
-  } catch (error) {
-    console.log(error);
-  }
-};
-export const updateProfile = async (req, res) => {
-  try {
-    const { fullname, email, phoneNumber, bio, skills, otp } = req.body; // Including OTP
+// ─── Cookie Options Helper ───────────────────────────────────────────────────
 
-    // Verify OTP before allowing profile update
-    let user = await User.findById(req.id);
-    if (!user) {
-      return res.status(400).json({
-        message: "User not found.",
-        success: false,
-      });
+/**
+ * getCookieOptions — Returns environment-aware cookie settings.
+ * 
+ * - secure: true in production forces HTTPS. In dev, false allows HTTP.
+ * - sameSite: "strict" in production prevents CSRF attacks. "lax" in dev
+ *   is needed because localhost doesn't always support strict same-site.
+ * - httpOnly: ALWAYS true — prevents JavaScript (XSS) from reading the cookie.
+ */
+const getCookieOptions = () => ({
+    maxAge: 24 * 60 * 60 * 1000,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+});
+
+// ─── Register ────────────────────────────────────────────────────────────────
+
+export const register = async (req, res, next) => {
+    try {
+        // req.validatedData is populated by the validate(registerSchema) middleware
+        const { fullname, email, phoneNumber, password, role } = req.validatedData || req.body;
+
+        const file = req.file;
+        if (!file) {
+            return res.status(400).json({
+                message: "Profile photo is required.",
+                success: false,
+            });
+        }
+
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            return res.status(409).json({
+                message: "An account with this email already exists.",
+                success: false,
+            });
+        }
+
+        const fileUri = getDataUri(file);
+        const cloudResponse = await cloudinary.uploader.upload(fileUri.content);
+        const hashedPassword = await bcrypt.hash(password, 12); // 12 rounds for registration
+
+        const newUser = await User.create({
+            fullname,
+            email,
+            phoneNumber,
+            password: hashedPassword,
+            role,
+            profile: {
+                profilePhoto: cloudResponse.secure_url,
+            },
+        });
+
+        if (role === 'recruiter') {
+            const admins = await User.find({ role: 'admin' });
+            const notifications = admins.map(admin => ({
+                recipient: admin._id,
+                sender: newUser._id,
+                title: "New Recruiter Registered",
+                message: `A new recruiter "${fullname}" has joined the platform.`,
+                type: "new_recruiter_registers",
+                link: "/admin/users",
+            }));
+            if (notifications.length > 0) {
+                await Notification.insertMany(notifications);
+            }
+        }
+
+        // Audit Log
+        await createAuditLog({
+            actor: newUser._id,
+            actorRole: role,
+            action: "USER_REGISTERED",
+            targetType: "user",
+            targetId: newUser._id,
+            targetName: fullname,
+            description: `New ${role} registered: ${fullname}`,
+            ipAddress: req.ip
+        });
+
+        return res.status(201).json({
+            message: "Account created successfully. Please log in.",
+            success: true,
+        });
+    } catch (error) {
+        next(error);
     }
-
-    if (otp !== user.otp) {
-      return res.status(400).json({
-        message: "Invalid OTP.",
-        success: false,
-      });
-    }
-
-    if (new Date() > new Date(user.otpExpiry)) {
-      return res.status(400).json({
-        message: "OTP has expired.",
-        success: false,
-      });
-    }
-
-    const file = req.file;
-    let skillsArray;
-    if (skills) {
-      skillsArray = skills.split(",");
-    }
-
-    // Update user data after OTP verification
-    if (fullname) user.fullname = fullname;
-    if (email) user.email = email;
-    if (phoneNumber) user.phoneNumber = phoneNumber;
-    if (bio) user.profile.bio = bio;
-    if (skills) user.profile.skills = skillsArray;
-
-    await user.save();
-
-    user = {
-      _id: user._id,
-      fullname: user.fullname,
-      email: user.email,
-      phoneNumber: user.phoneNumber,
-      role: user.role,
-      profile: user.profile,
-    };
-
-    return res.status(200).json({
-      message: "Profile updated successfully.",
-      user,
-      success: true,
-    });
-  } catch (error) {
-    console.log(error);
-  }
-};
-
-// Toggle Save / Unsave Job
-export const toggleSaveJob = async (req, res) => {
-  try {
-    const userId = req.id;
-    const jobId = req.params.id;
-
-    if (!jobId) {
-      return res.status(400).json({
-        message: "Job ID is required",
-        success: false,
-      });
-    }
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({
-        message: "User not found",
-        success: false,
-      });
-    }
-
-    if (!user.savedJobs) {
-      user.savedJobs = [];
-    }
-
-    const jobIndex = user.savedJobs.indexOf(jobId);
-    let isSaved = false;
-
-    if (jobIndex >= 0) {
-      // Unsave
-      user.savedJobs.splice(jobIndex, 1);
-      isSaved = false;
-    } else {
-      // Save
-      user.savedJobs.push(jobId);
-      isSaved = true;
-    }
-
-    await user.save();
-
-    return res.status(200).json({
-      message: isSaved ? "Job saved successfully." : "Job removed from saved jobs.",
-      savedJobs: user.savedJobs,
-      user,
-      success: true,
-    });
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({
-      message: "Server error",
-      success: false,
-    });
-  }
 };
 
-// Get All Saved Jobs for User
-export const getSavedJobs = async (req, res) => {
-  try {
-    const userId = req.id;
+// ─── Login ───────────────────────────────────────────────────────────────────
 
-    const user = await User.findById(userId).populate({
-      path: "savedJobs",
-      populate: {
-        path: "company"
-      }
-    });
+export const login = async (req, res, next) => {
+    try {
+        const { email, password, role } = req.validatedData || req.body;
 
-    if (!user) {
-      return res.status(404).json({
-        message: "User not found",
-        success: false,
-      });
+        const user = await User.findOne({ email });
+
+        // Use the same generic message for both "user not found" and "wrong password"
+        // to prevent user enumeration attacks (attackers finding which emails are registered)
+        const invalidCredentialsMsg = "Invalid email, password, or role.";
+
+        if (!user) {
+            return res.status(401).json({ message: invalidCredentialsMsg, success: false });
+        }
+
+        const isPasswordMatch = await bcrypt.compare(password, user.password);
+        if (!isPasswordMatch) {
+            return res.status(401).json({ message: invalidCredentialsMsg, success: false });
+        }
+
+        if (role !== user.role) {
+            return res.status(401).json({ message: invalidCredentialsMsg, success: false });
+        }
+
+        // Generate OTP as a string
+        const otp = generateOTP();
+        const hashedOtp = await bcrypt.hash(otp, 10); // Hash before storing
+        const otpExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+
+        await sendOTP(user.email, otp); // Send PLAIN otp to user's email
+
+        // Store the HASHED otp in the database, not the plain one
+        user.otp = hashedOtp;
+        user.otpExpiry = otpExpiry;
+        user.trackLogin();
+        await user.save();
+
+        return res.status(200).json({
+            message: "OTP sent to your registered email. Please verify.",
+            success: true,
+        });
+    } catch (error) {
+        next(error);
     }
+};
 
-    return res.status(200).json({
-      savedJobs: user.savedJobs || [],
-      success: true,
-    });
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({
-      message: "Server error",
-      success: false,
-    });
-  }
+// ─── Verify OTP ──────────────────────────────────────────────────────────────
+
+export const verifyOTP = async (req, res, next) => {
+    try {
+        const { email, otp } = req.validatedData || req.body;
+
+        const user = await User.findOne({ email });
+        if (!user) {
+            // Generic message — don't confirm whether email exists
+            return res.status(400).json({ message: "Invalid or expired OTP.", success: false });
+        }
+
+        // Check OTP expiry first
+        if (!user.otpExpiry || new Date() > new Date(user.otpExpiry)) {
+            return res.status(400).json({ message: "OTP has expired. Please log in again.", success: false });
+        }
+
+        // Compare submitted OTP against the HASHED otp in the database
+        if (!user.otp) {
+            return res.status(400).json({ message: "No pending OTP. Please log in again.", success: false });
+        }
+
+        const isOtpValid = await bcrypt.compare(otp, user.otp);
+        if (!isOtpValid) {
+            return res.status(400).json({ message: "Invalid OTP.", success: false });
+        }
+
+        // Clear OTP fields after successful verification
+        user.otp = null;
+        user.otpExpiry = null;
+        await user.save();
+
+        const tokenData = { userId: user._id };
+        const token = jwt.sign(tokenData, process.env.SECRET_KEY, { expiresIn: "1d" });
+
+        // Return a clean user object — never return password, otp, or otpExpiry
+        const safeUser = {
+            _id: user._id,
+            fullname: user.fullname,
+            email: user.email,
+            phoneNumber: user.phoneNumber,
+            role: user.role,
+            profile: user.profile,
+        };
+
+        // Audit Log
+        await createAuditLog({
+            actor: user._id,
+            actorRole: user.role,
+            action: "USER_LOGIN",
+            targetType: "user",
+            targetId: user._id,
+            targetName: user.fullname,
+            description: `${user.role} logged in: ${user.fullname}`,
+            ipAddress: req.ip
+        });
+
+        return res
+            .status(200)
+            .cookie("token", token, getCookieOptions())
+            .json({
+                message: `Welcome back, ${user.fullname}!`,
+                user: safeUser,
+                success: true,
+            });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// ─── Logout ──────────────────────────────────────────────────────────────────
+
+export const logout = async (req, res, next) => {
+    try {
+        const userId = req.id;
+        if (userId) {
+            const user = await User.findById(userId);
+            if (user) {
+                await createAuditLog({
+                    actor: user._id,
+                    actorRole: user.role,
+                    action: "USER_LOGOUT",
+                    targetType: "user",
+                    targetId: user._id,
+                    targetName: user.fullname,
+                    description: `${user.role} logged out: ${user.fullname}`,
+                    ipAddress: req.ip
+                });
+            }
+        }
+
+        return res
+            .status(200)
+            .cookie("token", "", { maxAge: 0, httpOnly: true })
+            .json({ message: "Logged out successfully.", success: true });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// ─── Update Profile ──────────────────────────────────────────────────────────
+
+export const updateProfile = async (req, res, next) => {
+    try {
+        const { fullname, email, phoneNumber, bio, skills, otp } = req.validatedData || req.body;
+
+        let user = await User.findById(req.id);
+        if (!user) {
+            return res.status(404).json({ message: "User not found.", success: false });
+        }
+
+        // Verify OTP before allowing profile update
+        if (!user.otp || !user.otpExpiry) {
+            return res.status(400).json({ message: "OTP verification required to update profile.", success: false });
+        }
+
+        if (new Date() > new Date(user.otpExpiry)) {
+            return res.status(400).json({ message: "OTP has expired.", success: false });
+        }
+
+        if (!otp) {
+            return res.status(400).json({ message: "OTP is required for profile updates.", success: false });
+        }
+
+        const isOtpValid = await bcrypt.compare(otp, user.otp);
+        if (!isOtpValid) {
+            return res.status(400).json({ message: "Invalid OTP.", success: false });
+        }
+
+        const file = req.file;
+        let skillsArray;
+        if (skills) {
+            skillsArray = skills.split(",").map((s) => s.trim()).filter(Boolean);
+        }
+
+        // Handle resume vs profile photo based on file MIME type
+        if (file) {
+            const fileUri = getDataUri(file);
+            const cloudResponse = await cloudinary.uploader.upload(fileUri.content);
+            if (file.mimetype === "application/pdf") {
+                user.profile.resume = cloudResponse.secure_url;
+                user.profile.resumeOriginalName = file.originalname;
+            } else {
+                user.profile.profilePhoto = cloudResponse.secure_url;
+            }
+        }
+
+        if (fullname) user.fullname = fullname;
+        if (email) user.email = email;
+        if (phoneNumber) user.phoneNumber = phoneNumber;
+        if (bio !== undefined) user.profile.bio = bio;
+        if (skills) user.profile.skills = skillsArray;
+
+        // Clear OTP after successful profile update
+        user.otp = null;
+        user.otpExpiry = null;
+
+        await user.save();
+
+        const safeUser = {
+            _id: user._id,
+            fullname: user.fullname,
+            email: user.email,
+            phoneNumber: user.phoneNumber,
+            role: user.role,
+            profile: user.profile,
+        };
+
+        return res.status(200).json({
+            message: "Profile updated successfully.",
+            user: safeUser,
+            success: true,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// ─── Toggle Save Job ──────────────────────────────────────────────────────────
+
+export const toggleSaveJob = async (req, res, next) => {
+    try {
+        const userId = req.id;
+        const jobId = req.params.id;
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: "User not found.", success: false });
+        }
+
+        if (!user.savedJobs) user.savedJobs = [];
+
+        const jobIndex = user.savedJobs.indexOf(jobId);
+        let isSaved;
+
+        if (jobIndex >= 0) {
+            user.savedJobs.splice(jobIndex, 1);
+            isSaved = false;
+        } else {
+            user.savedJobs.push(jobId);
+            isSaved = true;
+        }
+
+        await user.save();
+
+        return res.status(200).json({
+            message: isSaved ? "Job saved successfully." : "Job removed from saved jobs.",
+            savedJobs: user.savedJobs,
+            isSaved,
+            success: true,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// ─── Get Saved Jobs ───────────────────────────────────────────────────────────
+
+export const getSavedJobs = async (req, res, next) => {
+    try {
+        const user = await User.findById(req.id).populate({
+            path: "savedJobs",
+            populate: { path: "company" },
+        });
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found.", success: false });
+        }
+
+        return res.status(200).json({ savedJobs: user.savedJobs || [], success: true });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// ─── Get Analytics (Platform-level monthly user stats) ────────────────────────
+
+export const getAnalytics = async (req, res, next) => {
+    try {
+        const analytics = await User.aggregate([
+            {
+                $group: {
+                    _id: null,
+                    totalStudentLogins: { $sum: { $cond: ["$studentLogin", 1, 0] } },
+                    totalRecruiterLogins: { $sum: { $cond: ["$recruiterLogin", 1, 0] } },
+                    totalActiveUsers: {
+                        $sum: {
+                            $cond: [{ $or: ["$studentLogin", "$recruiterLogin"] }, 1, 0],
+                        },
+                    },
+                },
+            },
+        ]);
+
+        const result = analytics[0] || {
+            totalActiveUsers: 0,
+            totalStudentLogins: 0,
+            totalRecruiterLogins: 0,
+        };
+
+        return res.status(200).json({ ...result, success: true });
+    } catch (error) {
+        next(error);
+    }
 };

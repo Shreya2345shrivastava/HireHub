@@ -4,6 +4,10 @@ import HeroSection from './HeroSection'
 import CategoryCarousel from './CategoryCarousel'
 import LatestJobs from './LatestJobs'
 import Footer from './shared/Footer'
+import TrustedBySection from './landing/TrustedBySection'
+import FeaturesSection from './landing/FeaturesSection'
+import HowItWorks from './landing/HowItWorks'
+import CallToAction from './landing/CallToAction'
 import useGetAllJobs from '@/hooks/useGetAllJobs'
 import { useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
@@ -12,17 +16,24 @@ const Home = () => {
   useGetAllJobs();
   const { user } = useSelector(store => store.auth);
   const navigate = useNavigate();
+
+  // If user is recruiter, redirect to their home page (companies dashboard)
   useEffect(() => {
     if (user?.role === 'recruiter') {
-      navigate("/admin/companies");
+      navigate("/recruiter/companies");
     }
-  }, []);
+  }, [user, navigate]);
+
   return (
-    <div>
+    <div className="bg-mesh-gradient min-h-screen">
       <Navbar />
       <HeroSection />
       <CategoryCarousel />
+      <TrustedBySection />
+      <FeaturesSection />
+      <HowItWorks />
       <LatestJobs />
+      <CallToAction />
       <Footer />
     </div>
   )

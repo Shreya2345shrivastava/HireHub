@@ -74,7 +74,11 @@ const OTPVerification = () => {
                     "OTP verified successfully"
                 );
 
-                navigate("/");
+                if (res.data.user?.role === 'recruiter') {
+                    navigate("/recruiter/companies");
+                } else {
+                    navigate("/");
+                }
 
             }
 

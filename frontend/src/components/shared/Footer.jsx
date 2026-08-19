@@ -1,109 +1,114 @@
 import React, { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import axiosInstance from '@/api/axiosInstance';
-import { JOB_API_END_POINT } from '@/utils/constant';
+import { JOB_API_END_POINT, USER_API_END_POINT } from '@/utils/constant';
 
 const Footer = () => {
-  const { user, totalRecruiterLogins, totalStudentLogins, totalActiveUsers } = useSelector(store => store.auth);
+  const { user } = useSelector(store => store.auth);
 
-  // Define state for totalJobPosted
   const [totalJobPosted, setTotalJobPosted] = useState(null);
+  const [totalActiveUsers, setTotalActiveUsers] = useState(null);
+  const [totalStudentLogins, setTotalStudentLogins] = useState(null);
+  const [totalRecruiterLogins, setTotalRecruiterLogins] = useState(null);
 
   useEffect(() => {
-    // Define the async function inside useEffect
-    const fetchJobAnalytics = async () => {
+    if (!user) return; // Only fetch when logged in
+
+    const fetchAnalytics = async () => {
       try {
-        // Send GET request to the API
-        const response = await axiosInstance.get(`${JOB_API_END_POINT}/getTotalJobPostedLast30Days`);
+        const [jobRes, userRes] = await Promise.all([
+          axiosInstance.get(`${JOB_API_END_POINT}/getTotalJobPostedLast30Days`),
+          axiosInstance.get(`${USER_API_END_POINT}/analytics`),
+        ]);
 
-        
-
-        // If request is successful, directly update the totalJobPosted state
-        const fetchedTotalJobPosted = response.data.totalJobPosted;
-        setTotalJobPosted(fetchedTotalJobPosted);
-
+        if (jobRes.data) setTotalJobPosted(jobRes.data.totalJobPosted);
+        if (userRes.data.success) {
+          setTotalActiveUsers(userRes.data.totalActiveUsers);
+          setTotalStudentLogins(userRes.data.totalStudentLogins);
+          setTotalRecruiterLogins(userRes.data.totalRecruiterLogins);
+        }
       } catch (error) {
-        // Handle any error from the request
-        console.error("Error fetching job analytics:", error);
+        console.error("Error fetching analytics:", error);
       }
     };
 
-    // Call the async function
-    fetchJobAnalytics();
-
-  }, []); // Only run once when component mounts
+    fetchAnalytics();
+  }, [user]); // re-fetch whenever user changes (login/logout)
 
   return (
-    <footer className="border-t border-t-gray-200 py-8">
+    <footer className="border-t border-border py-8 mt-auto">
       <div className="container mx-auto px-4">
-        <div className="flex flex-col md:flex-row justify-between items-center">
-          <div className="mb-4 md:mb-0">
-            <h2 className="text-xl font-bold">Job Hunt</h2>
-            <p className="text-sm">© 2025 Your Company. All rights reserved.</p>
-          </div>
-
-          <div className="flex space-x-4 mt-4 md:mt-0">
-            {/* Social Media Links */}
-            <a href="https://facebook.com" className="hover:text-gray-400" aria-label="Facebook">
-              {/* Facebook SVG */}
-            </a>
-            <a href="https://twitter.com" className="hover:text-gray-400" aria-label="Twitter">
-              {/* Twitter SVG */}
-            </a>
-            <a href="https://linkedin.com" className="hover:text-gray-400" aria-label="LinkedIn">
-              {/* LinkedIn SVG */}
-            </a>
-          </div>
-        </div>
 
         {user && (
-          <div className="mt-4 text-sm">
+          <div className="mb-12 mt-4 text-sm">
             {/* Analytics Card Container */}
-            <div className="bg-gradient-to-r from-indigo-100 to-teal-100 p-6 rounded-lg shadow-lg text-gray-600">
-              <h2 className="text-3xl font-semibold mb-6 text-center text-gray-800">Monthly User Analytics</h2>
+            <div className="bg-card/50 backdrop-blur-xl p-8 rounded-2xl shadow-glass border border-border">
+              <h2 className="text-3xl font-bold mb-8 text-center text-foreground">
+                Monthly User Analytics
+              </h2>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 
                 {/* Total Active Users Card */}
-                <div className="flex flex-col items-center bg-white text-gray-1200 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-500">
-                  <div className="text-4xl font-bold text-indigo-500">
-                    <i className="fas fa-users"></i> {totalActiveUsers}
+                <div className="flex flex-col items-center bg-secondary/30 border border-border p-6 rounded-xl shadow-sm hover:shadow-glow transition-all duration-300 hover:-translate-y-1">
+                  <div className="text-4xl font-bold text-primary mb-2">
+                    <i className="fas fa-users"></i> {totalActiveUsers !== null ? totalActiveUsers : "..."}
                   </div>
-                  <p className="text-lg mt-2">Total Active Users</p>
-                  <p className="text-sm mt-1 text-gray-600">Users active in the last month</p>
+                  <p className="text-lg font-medium text-card-foreground">Active Users</p>
+                  <p className="text-xs mt-1 text-muted-foreground text-center">Users active in the last month</p>
                 </div>
 
                 {/* Monthly Student Logins Card */}
-                <div className="flex flex-col items-center bg-white text-gray-800 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300">
-                  <div className="text-4xl font-bold text-teal-500">
-                    <i className="fas fa-graduation-cap"></i> {totalStudentLogins}
+                <div className="flex flex-col items-center bg-secondary/30 border border-border p-6 rounded-xl shadow-sm hover:shadow-glow transition-all duration-300 hover:-translate-y-1">
+                  <div className="text-4xl font-bold text-blue-400 mb-2">
+                    <i className="fas fa-graduation-cap"></i> {totalStudentLogins !== null ? totalStudentLogins : "..."}
                   </div>
-                  <p className="text-lg mt-2">Monthly Student Logins</p>
-                  <p className="text-sm mt-1 text-gray-600">Students who logged in this month</p>
+                  <p className="text-lg font-medium text-card-foreground">Student Logins</p>
+                  <p className="text-xs mt-1 text-muted-foreground text-center">Students who logged in this month</p>
                 </div>
 
                 {/* Monthly Recruiter Logins Card */}
-                <div className="flex flex-col items-center bg-white text-gray-800 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300">
-                  <div className="text-4xl font-bold text-yellow-500">
-                    <i className="fas fa-briefcase"></i> {totalRecruiterLogins}
+                <div className="flex flex-col items-center bg-secondary/30 border border-border p-6 rounded-xl shadow-sm hover:shadow-glow transition-all duration-300 hover:-translate-y-1">
+                  <div className="text-4xl font-bold text-yellow-500 mb-2">
+                    <i className="fas fa-briefcase"></i> {totalRecruiterLogins !== null ? totalRecruiterLogins : "..."}
                   </div>
-                  <p className="text-lg mt-2">Monthly Recruiter Logins</p>
-                  <p className="text-sm mt-1 text-gray-600">Recruiters who logged in this month</p>
+                  <p className="text-lg font-medium text-card-foreground">Recruiter Logins</p>
+                  <p className="text-xs mt-1 text-muted-foreground text-center">Recruiters who logged in this month</p>
                 </div>
 
                 {/* Monthly Job Posted Card */}
-                <div className="flex flex-col items-center bg-white text-gray-800 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300">
-                  <div className="text-4xl font-bold text-purple-500">
-                    <i className="fas fa-briefcase"></i> {totalJobPosted !== null ? totalJobPosted : "Loading..."}
+                <div className="flex flex-col items-center bg-secondary/30 border border-border p-6 rounded-xl shadow-sm hover:shadow-glow transition-all duration-300 hover:-translate-y-1">
+                  <div className="text-4xl font-bold text-purple-400 mb-2">
+                    <i className="fas fa-briefcase"></i> {totalJobPosted !== null ? totalJobPosted : "..."}
                   </div>
-                  <p className="text-lg mt-2">Monthly Job Posted</p>
-                  <p className="text-sm mt-1 text-gray-600">Jobs posted in the last 1 month</p>
+                  <p className="text-lg font-medium text-card-foreground">Jobs Posted</p>
+                  <p className="text-xs mt-1 text-muted-foreground text-center">Jobs posted in the last 1 month</p>
                 </div>
 
               </div>
             </div>
           </div>
         )}
+
+        <div className="flex flex-col md:flex-row justify-between items-center border-t border-border/50 pt-8 mt-4">
+          <div className="mb-4 md:mb-0">
+            <h2 className="text-xl font-bold text-foreground">Job Hunt</h2>
+            <p className="text-sm text-muted-foreground">© 2025 Your Company. All rights reserved.</p>
+          </div>
+
+          <div className="flex space-x-4">
+            {/* Social Media Links */}
+            <a href="https://facebook.com" className="text-muted-foreground hover:text-primary transition-colors" aria-label="Facebook">
+              Facebook
+            </a>
+            <a href="https://twitter.com" className="text-muted-foreground hover:text-primary transition-colors" aria-label="Twitter">
+              Twitter
+            </a>
+            <a href="https://linkedin.com" className="text-muted-foreground hover:text-primary transition-colors" aria-label="LinkedIn">
+              LinkedIn
+            </a>
+          </div>
+        </div>
 
       </div>
     </footer>

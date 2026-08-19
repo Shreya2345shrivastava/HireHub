@@ -10,6 +10,9 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useSelector } from 'react-redux'
 import useGetCompanyById from '@/hooks/useGetCompanyById'
+import VerificationBadge from './VerificationBadge'
+import { Badge } from '../ui/badge'
+import { ShieldCheck } from 'lucide-react'
 
 const CompanySetup = () => {
     const params = useParams();
@@ -53,7 +56,7 @@ const CompanySetup = () => {
             });
             if (res.data.success) {
                 toast.success(res.data.message);
-                navigate("/admin/companies");
+                navigate("/recruiter/companies");
             }
         } catch (error) {
             console.log(error);
@@ -79,11 +82,19 @@ const CompanySetup = () => {
             <div className='max-w-xl mx-auto my-10'>
                 <form onSubmit={submitHandler}>
                     <div className='flex items-center gap-5 p-8'>
-                        <Button onClick={() => navigate("/admin/companies")} variant="outline" className="flex items-center gap-2 text-gray-500 font-semibold">
+                        <Button onClick={() => navigate("/recruiter/companies")} variant="outline" className="flex items-center gap-2 text-gray-500 font-semibold">
                             <ArrowLeft />
                             <span>Back</span>
                         </Button>
-                        <h1 className='font-bold text-xl'>Company Setup</h1>
+                        <div className="flex items-center gap-3">
+                            <h1 className='font-bold text-xl'>Company Setup</h1>
+                            <VerificationBadge status={singleCompany.verificationStatus} />
+                            {singleCompany?.trustScore !== undefined && (
+                                <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200 gap-1 flex items-center">
+                                    <ShieldCheck className="w-3.5 h-3.5" /> Trust Score: {singleCompany.trustScore}/100
+                                </Badge>
+                            )}
+                        </div>
                     </div>
                     <div className='grid grid-cols-2 gap-4'>
                         <div>
@@ -135,6 +146,16 @@ const CompanySetup = () => {
                         loading ? <Button className="w-full my-4"> <Loader2 className='mr-2 h-4 w-4 animate-spin' /> Please wait </Button> : <Button type="submit" className="w-full my-4">Update</Button>
                     }
                 </form>
+
+                <div className="mt-10 p-8 border border-border shadow-sm rounded-xl bg-card text-center">
+                    <h2 className='text-xl font-bold text-foreground'>KYC Verification</h2>
+                    <p className='text-sm text-muted-foreground mt-2 mb-6'>
+                        To post jobs and build trust, complete the KYC verification for your company.
+                    </p>
+                    <Button onClick={() => navigate(`/recruiter/company-verification/${params.id}`)}>
+                        Go to KYC Verification
+                    </Button>
+                </div>
             </div>
 
         </div>

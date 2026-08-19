@@ -10,6 +10,13 @@ const jobSlice = createSlice({
         allAppliedJobs:[],
         searchedQuery:"",
         allSavedJobs:[],
+        jobFilters: {
+            keyword: "",
+            location: "",
+            jobType: "",
+            salaryMin: "",
+            salaryMax: ""
+        }
     },
     reducers:{
         // actions
@@ -33,6 +40,16 @@ const jobSlice = createSlice({
         },
         setAllSavedJobs:(state,action) => {
             state.allSavedJobs = action.payload;
+        },
+        setJobFilters:(state,action) => {
+            state.jobFilters = { ...state.jobFilters, ...action.payload };
+        },
+        updateAppliedJobStatus:(state, action) => {
+            const { applicationId, status } = action.payload;
+            const index = state.allAppliedJobs.findIndex(app => app._id === applicationId);
+            if (index !== -1) {
+                state.allAppliedJobs[index].status = status;
+            }
         }
     }
 });
@@ -43,6 +60,8 @@ export const {
     setSearchJobByText, 
     setAllAppliedJobs,
     setSearchedQuery,
-    setAllSavedJobs
+    setAllSavedJobs,
+    setJobFilters,
+    updateAppliedJobStatus
 } = jobSlice.actions;
 export default jobSlice.reducer;

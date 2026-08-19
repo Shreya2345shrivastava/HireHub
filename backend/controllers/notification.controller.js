@@ -4,15 +4,24 @@ import { Notification } from "../models/notification.model.js";
 export const getNotifications = async (req, res) => {
     try {
         const userId = req.id;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const skip = (page - 1) * limit;
 
-        const notifications = await Notification.find({ user: userId })
-            .sort({ createdAt: -1 });
+        const notifications = await Notification.find({ recipient: userId })
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
 
-        const unreadCount = await Notification.countDocuments({ user: userId, read: false });
+        const unreadCount = await Notification.countDocuments({ recipient: userId, isRead: false });
+        const totalNotifications = await Notification.countDocuments({ recipient: userId });
 
         return res.status(200).json({
             notifications: notifications || [],
             unreadCount,
+            totalNotifications,
+            totalPages: Math.ceil(totalNotifications / limit),
+            currentPage: page,
             success: true
         });
     } catch (error) {
@@ -37,7 +46,7 @@ export const markAsRead = async (req, res) => {
             });
         }
 
-        notification.read = true;
+        notification.isRead = true;
         await notification.save();
 
         return res.status(200).json({
@@ -59,7 +68,7 @@ export const markAllAsRead = async (req, res) => {
     try {
         const userId = req.id;
 
-        await Notification.updateMany({ user: userId, read: false }, { read: true });
+        await Notification.updateMany({ recipient: userId, isRead: false }, { isRead: true });
 
         return res.status(200).json({
             message: "All notifications marked as read.",
@@ -79,7 +88,7 @@ export const clearNotifications = async (req, res) => {
     try {
         const userId = req.id;
 
-        await Notification.deleteMany({ user: userId });
+        await Notification.deleteMany({ recipient: userId });
 
         return res.status(200).json({
             message: "Notifications cleared.",

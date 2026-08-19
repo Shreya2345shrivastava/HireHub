@@ -29,12 +29,16 @@ const PostJob = () => {
     const navigate = useNavigate();
 
     const { companies } = useSelector(store => store.company);
+    
+    // Only verified companies can post jobs
+    const verifiedCompanies = companies.filter(c => c.verificationStatus === "verified");
+
     const changeEventHandler = (e) => {
         setInput({ ...input, [e.target.name]: e.target.value });
     };
 
     const selectChangeHandler = (value) => {
-        const selectedCompany = companies.find((company)=> company.name.toLowerCase() === value);
+        const selectedCompany = verifiedCompanies.find((company)=> company.name.toLowerCase() === value);
         setInput({...input, companyId:selectedCompany._id});
     };
 
@@ -48,7 +52,7 @@ const PostJob = () => {
             
             if(res.data.success){
                 toast.success(res.data.message);
-                navigate("/admin/jobs");
+                navigate("/recruiter/jobs");
             }
         } catch (error) {
             toast.error(error.response.data.message);
@@ -144,7 +148,7 @@ const PostJob = () => {
                             />
                         </div>
                         {
-                            companies.length > 0 && (
+                            verifiedCompanies.length > 0 && (
                                 <Select onValueChange={selectChangeHandler}>
                                     <SelectTrigger className="w-[180px]">
                                         <SelectValue placeholder="Select a Company" />
@@ -152,7 +156,7 @@ const PostJob = () => {
                                     <SelectContent>
                                         <SelectGroup>
                                             {
-                                                companies.map((company) => {
+                                                verifiedCompanies.map((company) => {
                                                     return (
                                                         <SelectItem value={company?.name?.toLowerCase()}>{company.name}</SelectItem>
                                                     )
@@ -166,10 +170,15 @@ const PostJob = () => {
                         }
                     </div> 
                     {
-                        loading ? <Button className="w-full my-4"> <Loader2 className='mr-2 h-4 w-4 animate-spin' /> Please wait </Button> : <Button type="submit" className="w-full my-4">Post New Job</Button>
+                        loading ? <Button className="w-full my-4"> <Loader2 className='mr-2 h-4 w-4 animate-spin' /> Please wait </Button> : <Button type="submit" className="w-full my-4" disabled={verifiedCompanies.length === 0}>Post New Job</Button>
                     }
                     {
-                        companies.length === 0 && <p className='text-xs text-red-600 font-bold text-center my-3'>*Please register a company first, before posting a jobs</p>
+                        verifiedCompanies.length === 0 && (
+                            <div className='p-4 bg-amber-500/10 border border-amber-500/20 rounded-md my-3 text-center'>
+                                <p className='text-sm text-amber-500 font-semibold'>* You must have at least one verified company to post jobs.</p>
+                                <p className='text-xs text-muted-foreground mt-1'>Please go to Companies, create one, and submit it for verification.</p>
+                            </div>
+                        )
                     }
                 </form>
             </div>

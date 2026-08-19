@@ -1,6 +1,6 @@
 import React from 'react'
 import { Button } from './ui/button'
-import { Bookmark, BookmarkCheck } from 'lucide-react'
+import { Bookmark, BookmarkCheck, MapPin } from 'lucide-react'
 import { Avatar, AvatarImage } from './ui/avatar'
 import { Badge } from './ui/badge'
 import { useNavigate } from 'react-router-dom'
@@ -10,6 +10,7 @@ import { USER_API_END_POINT } from '@/utils/constant'
 import { setUser } from '@/redux/authSlice'
 import { setAllSavedJobs } from '@/redux/jobSlice'
 import { toast } from 'sonner'
+import VerificationBadge from './admin/VerificationBadge'
 
 const Job = ({ job }) => {
     const navigate = useNavigate();
@@ -55,50 +56,69 @@ const Job = ({ job }) => {
     }
 
     return (
-        <div className='p-5 rounded-md shadow-xl bg-white border border-gray-100 flex flex-col justify-between h-full'>
+        <div className='p-6 rounded-2xl shadow-glass bg-card border border-border flex flex-col justify-between h-full transition-all duration-300 hover:shadow-glow hover:-translate-y-2 hover:border-cyan-500/50 group'>
             <div>
-                <div className='flex items-center justify-between'>
-                    <p className='text-sm text-gray-500'>
+                <div className='flex items-center justify-between mb-4'>
+                    <p className='text-sm text-muted-foreground'>
                         {daysAgoFunction(job?.createdAt) === 0 ? "Today" : `${daysAgoFunction(job?.createdAt)} days ago`}
                     </p>
                     <Button 
                         onClick={saveJobHandler} 
-                        variant={isSaved ? "default" : "outline"} 
-                        className={`rounded-full ${isSaved ? "bg-[#7209b7] text-white hover:bg-[#5f0799]" : ""}`} 
+                        variant="outline" 
+                        className={`rounded-full h-10 w-10 border ${isSaved ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/50 hover:bg-cyan-500/20" : "bg-background border-border text-muted-foreground hover:text-foreground hover:border-border/80"}`} 
                         size="icon"
                     >
-                        {isSaved ? <BookmarkCheck className="h-5 w-5" /> : <Bookmark className="h-5 w-5" />}
+                        {isSaved ? <BookmarkCheck className="h-5 w-5 drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]" /> : <Bookmark className="h-5 w-5" />}
                     </Button>
                 </div>
 
-                <div className='flex items-center gap-2 my-2'>
-                    <Button className="p-6" variant="outline" size="icon">
-                        <Avatar>
+                <div className='flex items-center gap-4 my-4'>
+                    <Button 
+                        onClick={() => navigate(`/company/${job?.company?._id}`)}
+                        className="w-12 h-12 rounded-xl bg-secondary/50 border border-border p-0 flex items-center justify-center hover:border-cyan-500/30 transition-colors cursor-pointer" 
+                        variant="outline"
+                    >
+                        <Avatar className="w-8 h-8">
                             <AvatarImage src={job?.company?.logo} />
                         </Avatar>
                     </Button>
                     <div>
-                        <h1 className='font-medium text-lg'>{job?.company?.name}</h1>
-                        <p className='text-sm text-gray-500'>India</p>
+                        <div className="flex items-center gap-2">
+                            <h1 
+                                onClick={() => navigate(`/company/${job?.company?._id}`)}
+                                className='font-semibold text-lg text-card-foreground hover:text-cyan-400 transition-colors capitalize cursor-pointer'
+                            >
+                                {job?.company?.name || "Company"}
+                            </h1>
+                            {job?.company?.verificationStatus && job?.company?.verificationStatus !== "unverified" && (
+                                <VerificationBadge status={job?.company?.verificationStatus} />
+                            )}
+                        </div>
+                        <p className='text-sm text-muted-foreground flex items-center gap-1'>
+                            <MapPin className="w-3.5 h-3.5" /> India
+                        </p>
                     </div>
                 </div>
 
-                <div>
-                    <h1 className='font-bold text-lg my-2'>{job?.title}</h1>
-                    <p className='text-sm text-gray-600 line-clamp-2'>{job?.description}</p>
+                <div className='mb-6'>
+                    <h1 className='font-bold text-xl mb-2 text-foreground capitalize tracking-tight'>{job?.title}</h1>
+                    <p className='text-sm text-muted-foreground line-clamp-2 leading-relaxed'>
+                        {job?.description && job.description !== 'null' ? job.description : 'No description provided.'}
+                    </p>
                 </div>
-                <div className='flex items-center gap-2 mt-4 flex-wrap'>
-                    <Badge className={'text-blue-700 font-bold'} variant="ghost">{job?.position} Positions</Badge>
-                    <Badge className={'text-[#F83002] font-bold'} variant="ghost">{job?.jobType}</Badge>
-                    <Badge className={'text-[#7209b7] font-bold'} variant="ghost">{job?.salary} LPA</Badge>
+                
+                <div className='flex items-center gap-2 mt-auto pt-4 border-t border-border/50 flex-wrap'>
+                    <Badge className={'text-blue-400 font-semibold bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 px-3 py-1'} variant="outline">{job?.position} Positions</Badge>
+                    <Badge className={'text-red-400 font-semibold bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 px-3 py-1'} variant="outline">{job?.jobType}</Badge>
+                    <Badge className={'text-cyan-400 font-semibold bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 px-3 py-1'} variant="outline">{job?.salary} LPA</Badge>
                 </div>
             </div>
 
             <div className='flex items-center gap-4 mt-6'>
-                <Button onClick={() => navigate(`/description/${job?._id}`)} variant="outline">Details</Button>
+                <Button onClick={() => navigate(`/description/${job?._id}`)} variant="outline" className="border-border hover:bg-secondary">Details</Button>
                 <Button 
                     onClick={saveJobHandler} 
-                    className={isSaved ? "bg-[#5aa621] hover:bg-[#48871a]" : "bg-[#7209b7] hover:bg-[#5f0799]"}
+                    className={`font-semibold ${isSaved ? "bg-cyan-500/10 border border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/20" : "bg-primary hover:bg-primary/90 text-primary-foreground"}`}
                 >
                     {isSaved ? "Saved" : "Save For Later"}
                 </Button>
